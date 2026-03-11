@@ -1,45 +1,81 @@
 <template>
   <div class="home">
-    <div class="home-header">
-      <h1>智慧学堂 - 在线视频课程</h1>
-      <p class="subtitle">发现更多精彩视频作品</p>
-    </div>
-    
-    <div v-if="loading" class="loading">
-      <el-icon class="is-loading" :size="40"><Loading /></el-icon>
-      <p>加载中...</p>
-    </div>
-    
-    <div v-else-if="videos.length === 0" class="empty">
-      <el-empty description="暂无视频作品">
-        <el-button type="primary" @click="router.push('/upload')">上传第一个视频</el-button>
-      </el-empty>
-    </div>
-    
-    <div v-else class="video-list">
-      <el-row :gutter="20">
-        <el-col :xs="24" :sm="12" :md="8" :lg="6" v-for="video in videos" :key="video.id">
-          <el-card shadow="hover" class="video-card" @click="playVideo(video)">
-            <div class="video-cover">
-              <img :src="video.coverUrl || 'http://localhost:8080/backend/image/default_image/defaultImage.png'" alt="视频封面" />
-              <div class="play-overlay">
-                <el-icon :size="40"><VideoPlay /></el-icon>
+    <!-- 主要内容区域 -->
+    <div class="main-content">
+      <div class="content-container">
+        <!-- 轮播图 -->
+        <div v-if="activeCategory === 'recommend' && !loading" class="carousel-container">
+          <el-carousel :interval="5000" type="card" height="200px">
+            <el-carousel-item v-for="item in carouselItems" :key="item.id">
+              <div class="carousel-item" @click="playVideo(item.video)">
+                <img :src="item.image" alt="轮播图" />
+                <div class="carousel-content">
+                  <h3>{{ item.title }}</h3>
+                  <p>{{ item.description }}</p>
+                </div>
               </div>
-            </div>
-            <div class="video-info">
-              <h3 class="video-title">{{ video.title }}</h3>
-              <p class="video-author">
-                <el-avatar :size="24" :src="userInfo.avatar"></el-avatar>
-                <span>{{ video.username }}</span>
-              </p>
-              <div class="video-stats">
-                <span><el-icon><View /></el-icon> {{ video.viewCount }}</span>
-                <span>{{ formatDate(video.createTime) }}</span>
+            </el-carousel-item>
+          </el-carousel>
+        </div>
+
+        <!-- 视频分类导航 -->
+        <div class="category-nav">
+          <el-tabs v-model="activeCategory" class="category-tabs">
+            <el-tab-pane label="推荐" name="recommend"></el-tab-pane>
+            <el-tab-pane label="动画" name="anime"></el-tab-pane>
+            <el-tab-pane label="音乐" name="music"></el-tab-pane>
+            <el-tab-pane label="舞蹈" name="dance"></el-tab-pane>
+            <el-tab-pane label="游戏" name="game"></el-tab-pane>
+            <el-tab-pane label="知识" name="knowledge"></el-tab-pane>
+            <el-tab-pane label="科技" name="tech"></el-tab-pane>
+            <el-tab-pane label="生活" name="life"></el-tab-pane>
+          </el-tabs>
+        </div>
+
+        <!-- 视频列表 -->
+        <div v-if="loading" class="loading">
+          <el-icon class="is-loading" :size="40"><Loading /></el-icon>
+          <p>加载中...</p>
+        </div>
+        
+        <div v-else-if="videos.length === 0" class="empty">
+          <el-empty description="暂无视频作品">
+            <el-button type="primary" @click="router.push('/upload')">上传第一个视频</el-button>
+          </el-empty>
+        </div>
+        
+        <div v-else class="video-list">
+          <el-row :gutter="16">
+            <el-col :xs="24" :sm="12" :md="8" :lg="6" v-for="video in videos" :key="video.id">
+              <div class="video-card" @click="playVideo(video)">
+                <!-- 视频封面 -->
+                <div class="video-cover">
+                  <img :src="video.coverUrl || 'http://localhost:8080/backend/image/default_image/defaultImage.png'" alt="视频封面" />
+                  <div class="play-overlay">
+                    <el-icon :size="24"><VideoPlay /></el-icon>
+                  </div>
+                </div>
+                
+                <!-- 视频信息 -->
+                <div class="video-info">
+                  <div class="video-title">{{ video.title }}</div>
+                  <div class="video-meta">
+                    <el-avatar :size="20" :src="userInfo.avatar"></el-avatar>
+                    <div class="meta-info">
+                      <div class="author">{{ video.username }}</div>
+                      <div class="stats">
+                        <span>{{ formatViewCount(video.viewCount) }}次观看</span>
+                        <span class="dot">·</span>
+                        <span>{{ formatDate(video.createTime) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
+            </el-col>
+          </el-row>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -48,7 +84,7 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Loading, VideoPlay, View } from '@element-plus/icons-vue'
+import { Loading, VideoPlay } from '@element-plus/icons-vue'
 
 interface Video {
   id: number;
@@ -60,6 +96,15 @@ interface Video {
   username: string;
   viewCount: number;
   createTime: string;
+  duration?: number;
+}
+
+interface CarouselItem {
+  id: number;
+  title: string;
+  description: string;
+  image: string;
+  video: Video;
 }
 
 interface UserInfo {
@@ -73,7 +118,7 @@ const router = useRouter()
 
 const loading = ref(false)
 const videos = ref<Video[]>([])
-const searchKeyword = ref('')
+const activeCategory = ref('recommend')
 
 const userInfo = ref<UserInfo>({
   id: 0,
@@ -81,6 +126,60 @@ const userInfo = ref<UserInfo>({
   avatar: '',
   role: ''
 })
+
+const carouselItems = ref<CarouselItem[]>([
+  {
+    id: 1,
+    title: '欢迎来到智慧学堂',
+    description: '发现更多精彩视频内容',
+    image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=education%20video%20platform%20banner%20with%20students%20learning&image_size=landscape_16_9',
+    video: {
+      id: 1,
+      title: '欢迎来到智慧学堂',
+      description: '智慧学堂是一个在线视频学习平台，提供丰富的教育资源',
+      videoUrl: '',
+      coverUrl: '',
+      userId: 1,
+      username: 'admin',
+      viewCount: 0,
+      createTime: new Date().toISOString()
+    }
+  },
+  {
+    id: 2,
+    title: '热门视频推荐',
+    description: '查看本周最受欢迎的视频',
+    image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=popular%20video%20recommendation%20banner&image_size=landscape_16_9',
+    video: {
+      id: 2,
+      title: '热门视频推荐',
+      description: '本周最受欢迎的视频集合',
+      videoUrl: '',
+      coverUrl: '',
+      userId: 1,
+      username: 'admin',
+      viewCount: 0,
+      createTime: new Date().toISOString()
+    }
+  },
+  {
+    id: 3,
+    title: '新用户指南',
+    description: '快速上手智慧学堂',
+    image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=new%20user%20guide%20banner%20for%20video%20platform&image_size=landscape_16_9',
+    video: {
+      id: 3,
+      title: '新用户指南',
+      description: '快速了解如何使用智慧学堂',
+      videoUrl: '',
+      coverUrl: '',
+      userId: 1,
+      username: 'admin',
+      viewCount: 0,
+      createTime: new Date().toISOString()
+    }
+  }
+])
 
 const handleSearch = (event: Event) => {
   const customEvent = event as CustomEvent
@@ -108,6 +207,9 @@ const loadVideos = async (keyword: string = '') => {
     if (keyword) {
       url += `&keyword=${encodeURIComponent(keyword)}`
     }
+    if (activeCategory.value !== 'recommend') {
+      url += `&category=${activeCategory.value}`
+    }
     const response = await fetch(url)
     const data = await response.json()
     
@@ -130,39 +232,97 @@ const playVideo = async (video: Video) => {
 const formatDate = (dateStr: string) => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`
+}
+
+const formatViewCount = (count: number) => {
+  if (count >= 10000) {
+    return (count / 10000).toFixed(1) + '万'
+  }
+  return count.toString()
 }
 </script>
 
 <style scoped>
 .home {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+/* 主要内容区域 */
+.main-content {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
 }
 
-.home-header {
-  text-align: center;
-  margin-bottom: 30px;
+/* 分类导航 */
+.category-nav {
+  background-color: #fff;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  padding: 0 20px;
 }
 
-.home-header h1 {
-  margin: 0;
-  color: #409eff;
-  font-size: 32px;
+.category-tabs {
+  border-bottom: none;
+}
+
+.category-tabs .el-tabs__content {
+  display: none;
+}
+
+/* 轮播图 */
+.carousel-container {
+  margin-bottom: 20px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.carousel-item {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.carousel-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s;
+}
+
+.carousel-item:hover img {
+  transform: scale(1.05);
+}
+
+.carousel-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  color: #fff;
+}
+
+.carousel-content h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
   font-weight: 600;
 }
 
-.home-header .subtitle {
-  margin: 10px 0 0;
-  color: #909399;
-  font-size: 16px;
+.carousel-content p {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.9;
 }
 
-.video-toolbar {
-  margin-bottom: 20px;
-}
-
+/* 视频列表 */
 .loading, .empty {
   text-align: center;
   padding: 60px 0;
@@ -183,19 +343,24 @@ const formatDate = (dateStr: string) => {
 }
 
 .video-card {
+  background-color: #fff;
+  border-radius: 8px;
+  overflow: hidden;
   cursor: pointer;
+  transition: transform 0.3s, box-shadow 0.3s;
   margin-bottom: 20px;
-  transition: transform 0.3s;
 }
 
 .video-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* 视频封面 */
 .video-cover {
   position: relative;
   width: 100%;
-  height: 150px;
+  height: 160px;
   overflow: hidden;
   background-color: #000;
 }
@@ -204,6 +369,11 @@ const formatDate = (dateStr: string) => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.3s;
+}
+
+.video-card:hover .video-cover img {
+  transform: scale(1.05);
 }
 
 .play-overlay {
@@ -226,76 +396,71 @@ const formatDate = (dateStr: string) => {
 
 .play-overlay .el-icon {
   color: #fff;
+  background-color: rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
+  padding: 8px;
 }
 
+/* 视频信息 */
 .video-info {
-  padding: 10px;
+  padding: 12px;
 }
 
 .video-title {
-  margin: 0 0 10px;
   font-size: 14px;
   color: #303133;
+  font-weight: 500;
+  line-height: 1.4;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  height: 40px;
+}
+
+.video-meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.meta-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.author {
+  font-size: 12px;
+  color: #606266;
+  margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.video-author {
+.stats {
+  font-size: 11px;
+  color: #909399;
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 0 10px;
-  font-size: 12px;
-  color: #606266;
 }
 
-.video-stats {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: #909399;
+.dot {
+  font-size: 10px;
+  margin: 0 2px;
 }
 
-.video-stats span {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.video-player {
-  width: 100%;
-  background-color: #000;
-}
-
-.video-detail {
-  padding: 20px;
-}
-
-.video-detail h2 {
-  margin: 0 0 10px;
-  font-size: 20px;
-  color: #303133;
-}
-
-.video-meta {
-  display: flex;
-  gap: 20px;
-  margin-bottom: 15px;
-  color: #909399;
-  font-size: 14px;
-}
-
-.video-meta span {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.video-description {
-  color: #606266;
-  font-size: 14px;
-  line-height: 1.6;
-  margin: 0;
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .main-content {
+    padding: 12px;
+  }
+  
+  .video-cover {
+    height: 140px;
+  }
 }
 </style>
