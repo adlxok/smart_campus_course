@@ -57,6 +57,14 @@ const handleLogout = () => {
   router.push('/login')
 }
 
+const handleDropdownCommand = (command: string) => {
+  if (command === 'logout') {
+    handleLogout()
+  } else {
+    router.push(command)
+  }
+}
+
 const searchQuery = ref('')
 const handleSearch = () => {
   if (searchQuery.value.trim()) {
@@ -93,7 +101,7 @@ const handleSearch = () => {
           </div>
           <template v-if="isLoggedIn">
             <div class="user">
-              <el-dropdown trigger="hover">
+              <el-dropdown trigger="hover" @command="handleDropdownCommand">
                 <div class="user-info">
                   <el-avatar :size="32" :src="userInfo.avatar"></el-avatar>
                   <span class="username">{{ userInfo.username }}</span>
@@ -101,9 +109,9 @@ const handleSearch = () => {
                 </div>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item @click="router.push('/creator')">创作者中心</el-dropdown-item>
-                    <el-dropdown-item @click="router.push('/user')">用户中心</el-dropdown-item>
-                    <el-dropdown-item divided @click="handleLogout">登出</el-dropdown-item>
+                    <el-dropdown-item command="/creator">创作者中心</el-dropdown-item>
+                    <el-dropdown-item command="/user">用户中心</el-dropdown-item>
+                    <el-dropdown-item divided command="logout">登出</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>

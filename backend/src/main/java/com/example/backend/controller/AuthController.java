@@ -155,4 +155,53 @@ public class AuthController {
         
         return response;
     }
+    
+    @PostMapping("/update-profile")
+    public Map<String, Object> updateProfile(@RequestBody Map<String, String> profileData) {
+        Map<String, Object> response = new HashMap<>();
+        
+        String username = profileData.get("username");
+        String oldUsername = profileData.get("oldUsername");
+        
+        if (username == null || username.trim().isEmpty()) {
+            response.put("success", false);
+            response.put("message", "用户名不能为空");
+            return response;
+        }
+        
+        // 查找用户
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("username", oldUsername);
+        User user = userMapper.selectOne(queryWrapper);
+        if (user == null) {
+            response.put("success", false);
+            response.put("message", "用户不存在");
+            return response;
+        }
+        
+        // 如果修改了用户名，检查新用户名是否已存在
+        if (!username.equals(oldUsername)) {
+            QueryWrapper<User> checkWrapper = new QueryWrapper<>();
+            checkWrapper.eq("username", username);
+            User existingUser = userMapper.selectOne(checkWrapper);
+            if (existingUser != null) {
+                response.put("success", false);
+                response.put("message", "用户名已存在");
+                return response;
+            }
+        }
+        
+        // 更新用户信息
+        user.setUsername(username);
+        user.setGender(profileData.get("gender"));
+        user.setBirthday(profileData.get("birthday"));
+        user.setSignature(profileData.get("signature"));
+        userMapper.updateById(user);
+        
+        response.put("success", true);
+        response.put("message", "个人信息更新成功");
+        response.put("user", user);
+        
+        return response;
+    }
 }

@@ -29,6 +29,15 @@ public class User {
     @TableField("avatar")
     private String avatar;
     
+    @TableField("gender")
+    private String gender;
+    
+    @TableField("birthday")
+    private String birthday;
+    
+    @TableField("signature")
+    private String signature;
+    
     public User() {
     }
     
@@ -92,5 +101,29 @@ public class User {
     
     public void setAvatar(String avatar) {
         this.avatar = avatar;
+    }
+    
+    public String getGender() {
+        return gender;
+    }
+    
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+    
+    public String getBirthday() {
+        return birthday;
+    }
+    
+    public void setBirthday(String birthday) {
+        this.birthday = birthday;
+    }
+    
+    public String getSignature() {
+        return signature;
+    }
+    
+    public void setSignature(String signature) {
+        this.signature = signature;
     }
 }
