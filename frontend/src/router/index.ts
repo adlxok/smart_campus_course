@@ -33,12 +33,6 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
-      path: '/upload',
-      name: 'upload',
-      component: () => import('../views/UploadView.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
       path: '/video',
       name: 'video',
       component: () => import('../views/VideoView.vue'),

@@ -123,6 +123,38 @@
               <el-form-item label="视频描述">
                 <el-input v-model="uploadForm.description" type="textarea" :rows="4" placeholder="请输入视频描述" maxlength="200" show-word-limit />
               </el-form-item>
+              <el-form-item label="视频分类">
+                <el-select v-model="uploadForm.categoryId" placeholder="请选择视频分类" style="width: 100%;">
+                  <el-option 
+                    v-for="cat in categories" 
+                    :key="cat.id" 
+                    :label="cat.name" 
+                    :value="cat.id"
+                  ></el-option>
+                </el-select>
+              </el-form-item>
+              <el-form-item label="视频标签">
+                <div class="tags-input-container">
+                  <el-tag
+                    v-for="tag in uploadForm.tags"
+                    :key="tag"
+                    closable
+                    @close="removeTag(tag)"
+                    class="tag-item"
+                  >
+                    {{ tag }}
+                  </el-tag>
+                  <el-input
+                    v-model="tagInput"
+                    placeholder="输入标签后按回车添加"
+                    size="small"
+                    class="tag-input"
+                    @keyup.enter="addTag"
+                    @blur="addTag"
+                  />
+                </div>
+                <div class="tags-hint">最多添加10个标签，每个标签不超过10个字</div>
+              </el-form-item>
               <el-form-item label="视频文件">
                 <el-upload
                   ref="videoUploadRef"
@@ -224,6 +256,12 @@ interface Video {
   createTime: string;
 }
 
+interface Category {
+  id: number;
+  name: string;
+  code: string;
+}
+
 const router = useRouter()
 
 const activeMenu = ref('home')
@@ -240,13 +278,17 @@ const stats = reactive({
 })
 
 const myVideos = ref<Video[]>([])
+const categories = ref<Category[]>([])
 const defaultCover = 'http://localhost:8080/backend/image/default_image/defaultImage.png'
 
 const uploadForm = reactive({
   title: '',
-  description: ''
+  description: '',
+  categoryId: null as number | null,
+  tags: [] as string[]
 })
 
+const tagInput = ref('')
 const videoFile = ref<File | null>(null)
 const coverFile = ref<File | null>(null)
 const coverPreview = ref('')
@@ -257,6 +299,44 @@ const handleMenuSelect = (index: string) => {
   if (index === 'videos') {
     loadMyVideos()
   }
+}
+
+const loadCategories = async () => {
+  try {
+    const response = await fetch('http://localhost:8080/api/video/categories')
+    const data = await response.json()
+    if (data.success) {
+      categories.value = data.data.filter((cat: Category) => cat.code !== 'recommend')
+    }
+  } catch (error) {
+    console.error('加载分类失败', error)
+  }
+}
+
+const addTag = () => {
+  const tag = tagInput.value.trim()
+  if (!tag) {
+    tagInput.value = ''
+    return
+  }
+  if (tag.length > 10) {
+    ElMessage.warning('标签长度不能超过10个字')
+    return
+  }
+  if (uploadForm.tags.length >= 10) {
+    ElMessage.warning('最多只能添加10个标签')
+    return
+  }
+  if (uploadForm.tags.includes(tag)) {
+    ElMessage.warning('标签已存在')
+    return
+  }
+  uploadForm.tags.push(tag)
+  tagInput.value = ''
+}
+
+const removeTag = (tag: string) => {
+  uploadForm.tags = uploadForm.tags.filter(t => t !== tag)
 }
 
 const handleVideoChange = (file: any) => {
@@ -285,6 +365,9 @@ const submitVideo = async () => {
     const formData = new FormData()
     formData.append('title', uploadForm.title)
     formData.append('description', uploadForm.description)
+    if (uploadForm.categoryId) {
+      formData.append('categoryId', uploadForm.categoryId.toString())
+    }
     formData.append('video', videoFile.value)
     if (coverFile.value) {
       formData.append('cover', coverFile.value)
@@ -300,9 +383,21 @@ const submitVideo = async () => {
     
     const data = await response.json()
     if (data.success) {
+      if (uploadForm.tags.length > 0 && data.data && data.data.id) {
+        await fetch(`http://localhost:8080/api/tag/video/${data.data.id}/tags`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(uploadForm.tags)
+        })
+      }
       ElMessage.success('视频发布成功')
       uploadForm.title = ''
       uploadForm.description = ''
+      uploadForm.categoryId = null
+      uploadForm.tags = []
       videoFile.value = null
       coverFile.value = null
       coverPreview.value = ''
@@ -367,7 +462,6 @@ const deleteVideo = async (videoId: number) => {
       ElMessage.error(data.message || '删除失败')
     }
   } catch (error) {
-    // 用户取消删除
   }
 }
 
@@ -383,6 +477,7 @@ onMounted(() => {
     const user = JSON.parse(userStr)
     userInfo.value.username = user.username
   }
+  loadCategories()
   loadMyVideos()
 })
 </script>
@@ -609,6 +704,42 @@ onMounted(() => {
   width: 178px;
   height: 100px;
   object-fit: cover;
+}
+
+.tags-input-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  padding: 8px;
+  min-height: 40px;
+}
+
+.tags-input-container:focus-within {
+  border-color: #409eff;
+}
+
+.tag-item {
+  margin: 0;
+}
+
+.tag-input {
+  width: 150px;
+  border: none;
+  box-shadow: none;
+}
+
+.tag-input :deep(.el-input__wrapper) {
+  box-shadow: none;
+  padding: 0;
+}
+
+.tags-hint {
+  color: #909399;
+  font-size: 12px;
+  margin-top: 4px;
 }
 
 .videos-section {

@@ -39,7 +39,7 @@
         
         <div v-else-if="videos.length === 0" class="empty">
           <el-empty description="暂无视频作品">
-            <el-button type="primary" @click="router.push('/upload')">上传第一个视频</el-button>
+            <el-button type="primary" @click="router.push('/creator')">上传第一个视频</el-button>
           </el-empty>
         </div>
         
