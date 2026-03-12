@@ -28,6 +28,29 @@
           </el-select>
         </el-form-item>
         
+        <el-form-item label="视频标签" prop="tags">
+          <div class="tags-input-container">
+            <el-tag
+              v-for="tag in form.tags"
+              :key="tag"
+              closable
+              @close="removeTag(tag)"
+              class="tag-item"
+            >
+              {{ tag }}
+            </el-tag>
+            <el-input
+              v-model="tagInput"
+              placeholder="输入标签后按回车添加"
+              size="small"
+              class="tag-input"
+              @keyup.enter="addTag"
+              @blur="addTag"
+            />
+          </div>
+          <div class="tags-hint">最多添加5个标签，每个标签不超过10个字</div>
+        </el-form-item>
+        
         <el-form-item label="选择视频" prop="video">
           <el-upload
             class="video-uploader"
@@ -88,10 +111,13 @@ const form = reactive({
   title: '',
   description: '',
   categoryId: null as number | null,
+  tags: [] as string[],
   video: null as File | null,
   cover: null as File | null,
   coverUrl: ''
 })
+
+const tagInput = ref('')
 
 const rules = reactive({
   title: [
@@ -109,6 +135,32 @@ const handleVideoChange = (uploadFile: any) => {
 const handleCoverChange = (uploadFile: any) => {
   form.cover = uploadFile.raw
   form.coverUrl = URL.createObjectURL(uploadFile.raw)
+}
+
+const addTag = () => {
+  const tag = tagInput.value.trim()
+  if (!tag) {
+    tagInput.value = ''
+    return
+  }
+  if (tag.length > 10) {
+    ElMessage.warning('标签长度不能超过10个字')
+    return
+  }
+  if (form.tags.length >= 5) {
+    ElMessage.warning('最多只能添加5个标签')
+    return
+  }
+  if (form.tags.includes(tag)) {
+    ElMessage.warning('标签已存在')
+    return
+  }
+  form.tags.push(tag)
+  tagInput.value = ''
+}
+
+const removeTag = (tag: string) => {
+  form.tags = form.tags.filter(t => t !== tag)
 }
 
 const submitUpload = async () => {
@@ -149,6 +201,16 @@ const submitUpload = async () => {
         const data = await response.json()
         
         if (data.success) {
+          if (form.tags.length > 0 && data.data && data.data.id) {
+            await fetch(`http://localhost:8080/api/tag/video/${data.data.id}/tags`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(form.tags)
+            })
+          }
           ElMessage.success('视频上传成功')
           router.push('/')
         } else {
@@ -214,5 +276,41 @@ const submitUpload = async () => {
   color: #909399;
   font-size: 12px;
   margin-top: 8px;
+}
+
+.tags-input-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  padding: 8px;
+  min-height: 40px;
+}
+
+.tags-input-container:focus-within {
+  border-color: #409eff;
+}
+
+.tag-item {
+  margin: 0;
+}
+
+.tag-input {
+  width: 150px;
+  border: none;
+  box-shadow: none;
+}
+
+.tag-input :deep(.el-input__wrapper) {
+  box-shadow: none;
+  padding: 0;
+}
+
+.tags-hint {
+  color: #909399;
+  font-size: 12px;
+  margin-top: 4px;
 }
 </style>

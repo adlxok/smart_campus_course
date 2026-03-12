@@ -1,4 +1,5 @@
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\User.java
+D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\VideoTag.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\mapper\UserFollowMapper.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\VideoLike.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\utils\JwtUtil.java
@@ -10,12 +11,16 @@ D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\c
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\UserFollowController.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\HelloController.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\VideoController.java
+D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\TagController.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\mapper\VideoFavoriteMapper.java
+D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\mapper\VideoTagMapper.java
+D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\Tag.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\CommentController.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\config\SecurityConfig.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\VideoFavorite.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\AuthController.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\config\CorsConfig.java
+D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\mapper\TagMapper.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\mapper\UserMapper.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\BackendApplication.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\Category.java

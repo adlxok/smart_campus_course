@@ -80,8 +80,15 @@
         <div class="video-description">
           <h3><el-icon><Document /></el-icon> 视频简介</h3>
           <p>{{ video.description || '暂无描述' }}</p>
-          <div class="video-tags" v-if="video.categoryId">
-            <el-tag type="primary" size="small">{{ getCategoryName(video.categoryId) }}</el-tag>
+          <div class="video-meta-info">
+            <div class="video-category" v-if="video.categoryId">
+              <span class="meta-label">分类：</span>
+              <el-tag type="primary" size="small">{{ getCategoryName(video.categoryId) }}</el-tag>
+            </div>
+            <div class="video-tags" v-if="videoTags.length > 0">
+              <span class="meta-label">标签：</span>
+              <el-tag v-for="tag in videoTags" :key="tag.id" type="info" size="small" class="tag-item">{{ tag.name }}</el-tag>
+            </div>
           </div>
         </div>
         
@@ -610,6 +617,7 @@ onMounted(async () => {
         loadComments(foundVideo.id)
         loadInteractionInfo(foundVideo.id)
         loadFollowStatus(foundVideo.userId)
+        loadVideoTags(foundVideo.id)
       } else {
         ElMessage.error('视频不存在')
         router.push('/')
@@ -742,6 +750,7 @@ const goToProfile = () => {
 }
 
 const categories = ref<{id: number, name: string}[]>([])
+const videoTags = ref<{id: number, name: string}[]>([])
 
 const loadCategories = async () => {
   try {
@@ -758,6 +767,18 @@ const loadCategories = async () => {
 const getCategoryName = (categoryId: number) => {
   const cat = categories.value.find(c => c.id === categoryId)
   return cat ? cat.name : '未分类'
+}
+
+const loadVideoTags = async (videoId: number) => {
+  try {
+    const response = await fetch(`http://localhost:8080/api/tag/video/${videoId}`)
+    const data = await response.json()
+    if (data.success) {
+      videoTags.value = data.data
+    }
+  } catch (error) {
+    console.error('加载视频标签失败', error)
+  }
 }
 </script>
 
@@ -1092,17 +1113,28 @@ const getCategoryName = (categoryId: number) => {
   color: #666;
 }
 
-.video-tags {
+.video-meta-info {
   margin-top: 16px;
   display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.video-category, .video-tags {
+  display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
-.video-tags .el-tag {
-  font-size: 13px;
-  padding: 6px 14px;
-  border-radius: 16px;
+.meta-label {
+  font-size: 14px;
+  color: #909399;
+  margin-right: 4px;
+}
+
+.tag-item {
+  margin-right: 4px;
 }
 
 .comment-section {

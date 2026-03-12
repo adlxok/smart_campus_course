@@ -21,7 +21,7 @@
         <!-- 视频分类导航 -->
         <div class="category-nav">
           <el-tabs v-model="activeCategory" class="category-tabs" @tab-change="handleCategoryChange">
-            <el-tab-pane label="全部" :name="null"></el-tab-pane>
+            <el-tab-pane label="全部" :name="0"></el-tab-pane>
             <el-tab-pane 
               v-for="cat in categories" 
               :key="cat.id" 
@@ -126,7 +126,7 @@ const router = useRouter()
 const loading = ref(false)
 const videos = ref<Video[]>([])
 const categories = ref<Category[]>([])
-const activeCategory = ref<number | null>(null)
+const activeCategory = ref(0)
 
 const userInfo = ref<UserInfo>({
   id: 0,
@@ -232,7 +232,7 @@ const loadVideos = async (keyword: string = '') => {
     if (keyword) {
       url += `&keyword=${encodeURIComponent(keyword)}`
     }
-    if (activeCategory.value !== null) {
+    if (activeCategory.value && activeCategory.value !== 0) {
       url += `&categoryId=${activeCategory.value}`
     }
     const response = await fetch(url)
