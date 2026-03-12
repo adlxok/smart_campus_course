@@ -20,15 +20,14 @@
 
         <!-- 视频分类导航 -->
         <div class="category-nav">
-          <el-tabs v-model="activeCategory" class="category-tabs">
-            <el-tab-pane label="推荐" name="recommend"></el-tab-pane>
-            <el-tab-pane label="动画" name="anime"></el-tab-pane>
-            <el-tab-pane label="音乐" name="music"></el-tab-pane>
-            <el-tab-pane label="舞蹈" name="dance"></el-tab-pane>
-            <el-tab-pane label="游戏" name="game"></el-tab-pane>
-            <el-tab-pane label="知识" name="knowledge"></el-tab-pane>
-            <el-tab-pane label="科技" name="tech"></el-tab-pane>
-            <el-tab-pane label="生活" name="life"></el-tab-pane>
+          <el-tabs v-model="activeCategory" class="category-tabs" @tab-change="handleCategoryChange">
+            <el-tab-pane label="全部" :name="null"></el-tab-pane>
+            <el-tab-pane 
+              v-for="cat in categories" 
+              :key="cat.id" 
+              :label="cat.name" 
+              :name="cat.id"
+            ></el-tab-pane>
           </el-tabs>
         </div>
 
@@ -81,7 +80,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Loading, VideoPlay } from '@element-plus/icons-vue'
@@ -95,8 +94,16 @@ interface Video {
   userId: number;
   username: string;
   viewCount: number;
+  categoryId?: number;
   createTime: string;
   duration?: number;
+}
+
+interface Category {
+  id: number;
+  name: string;
+  code: string;
+  sort: number;
 }
 
 interface CarouselItem {
@@ -118,7 +125,8 @@ const router = useRouter()
 
 const loading = ref(false)
 const videos = ref<Video[]>([])
-const activeCategory = ref('recommend')
+const categories = ref<Category[]>([])
+const activeCategory = ref<number | null>(null)
 
 const userInfo = ref<UserInfo>({
   id: 0,
@@ -186,6 +194,18 @@ const handleSearch = (event: Event) => {
   loadVideos(customEvent.detail)
 }
 
+const loadCategories = async () => {
+  try {
+    const response = await fetch('http://localhost:8080/api/video/categories')
+    const data = await response.json()
+    if (data.success) {
+      categories.value = data.data
+    }
+  } catch (error) {
+    console.error('加载分类失败', error)
+  }
+}
+
 onMounted(async () => {
   const storedUser = localStorage.getItem('user')
   if (storedUser) {
@@ -193,8 +213,13 @@ onMounted(async () => {
   }
   
   window.addEventListener('videoSearch', handleSearch)
+  await loadCategories()
   loadVideos()
 })
+
+const handleCategoryChange = () => {
+  loadVideos()
+}
 
 onBeforeUnmount(() => {
   window.removeEventListener('videoSearch', handleSearch)
@@ -207,8 +232,8 @@ const loadVideos = async (keyword: string = '') => {
     if (keyword) {
       url += `&keyword=${encodeURIComponent(keyword)}`
     }
-    if (activeCategory.value !== 'recommend') {
-      url += `&category=${activeCategory.value}`
+    if (activeCategory.value !== null) {
+      url += `&categoryId=${activeCategory.value}`
     }
     const response = await fetch(url)
     const data = await response.json()

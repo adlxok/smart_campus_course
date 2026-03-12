@@ -16,6 +16,18 @@
           <el-input v-model="form.description" type="textarea" placeholder="请输入视频描述" :rows="4" maxlength="500" show-word-limit></el-input>
         </el-form-item>
         
+        <el-form-item label="视频分类" prop="categoryId">
+          <el-select v-model="form.categoryId" placeholder="请选择视频分类" style="width: 100%;">
+            <el-option label="动画" :value="2"></el-option>
+            <el-option label="音乐" :value="3"></el-option>
+            <el-option label="舞蹈" :value="4"></el-option>
+            <el-option label="游戏" :value="5"></el-option>
+            <el-option label="知识" :value="6"></el-option>
+            <el-option label="科技" :value="7"></el-option>
+            <el-option label="生活" :value="8"></el-option>
+          </el-select>
+        </el-form-item>
+        
         <el-form-item label="选择视频" prop="video">
           <el-upload
             class="video-uploader"
@@ -75,6 +87,7 @@ const formRef = ref<InstanceType<typeof ElForm> | null>(null)
 const form = reactive({
   title: '',
   description: '',
+  categoryId: null as number | null,
   video: null as File | null,
   cover: null as File | null,
   coverUrl: ''
@@ -115,7 +128,12 @@ const submitUpload = async () => {
         const formData = new FormData()
         formData.append('title', form.title)
         formData.append('description', form.description)
-        formData.append('video', form.video)
+        if (form.categoryId) {
+          formData.append('categoryId', form.categoryId.toString())
+        }
+        if (form.video) {
+          formData.append('video', form.video)
+        }
         if (form.cover) {
           formData.append('cover', form.cover)
         }

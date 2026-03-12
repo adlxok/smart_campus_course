@@ -18,8 +18,10 @@ com\example\backend\controller\AvatarController.class
 com\example\backend\mapper\VideoFavoriteMapper.class
 com\example\backend\mapper\UserMapper.class
 com\example\backend\controller\VideoInteractionController.class
+com\example\backend\entity\Category.class
 com\example\backend\entity\Comment.class
 com\example\backend\entity\Video.class
 com\example\backend\config\SecurityConfig.class
+com\example\backend\mapper\CategoryMapper.class
 com\example\backend\entity\UserFollow.class
 com\example\backend\entity\VideoLike.class

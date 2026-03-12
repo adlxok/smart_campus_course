@@ -26,6 +26,8 @@ public class Video {
     
     private Integer viewCount;
     
+    private Long categoryId;
+    
     private LocalDateTime createTime;
     
     private LocalDateTime updateTime;
@@ -107,6 +109,14 @@ public class Video {
     
     public void setViewCount(Integer viewCount) {
         this.viewCount = viewCount;
+    }
+    
+    public Long getCategoryId() {
+        return categoryId;
+    }
+    
+    public void setCategoryId(Long categoryId) {
+        this.categoryId = categoryId;
     }
     
     public LocalDateTime getCreateTime() {

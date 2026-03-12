@@ -6,8 +6,10 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.backend.entity.User;
 import com.example.backend.entity.Video;
+import com.example.backend.entity.Category;
 import com.example.backend.mapper.UserMapper;
 import com.example.backend.mapper.VideoMapper;
+import com.example.backend.mapper.CategoryMapper;
 import com.example.backend.utils.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -29,16 +31,23 @@ public class VideoController {
     @Autowired
     private UserMapper userMapper;
     
+    @Autowired
+    private CategoryMapper categoryMapper;
+    
     @GetMapping("/list")
     public Map<String, Object> getVideoList(@RequestParam(defaultValue = "1") Integer pageNum,
                                            @RequestParam(defaultValue = "10") Integer pageSize,
-                                           @RequestParam(required = false) String keyword) {
+                                           @RequestParam(required = false) String keyword,
+                                           @RequestParam(required = false) Long categoryId) {
         Map<String, Object> response = new HashMap<>();
         
         Page<Video> page = new Page<>(pageNum, pageSize);
         QueryWrapper<Video> queryWrapper = new QueryWrapper<>();
         if (keyword != null && !keyword.isEmpty()) {
             queryWrapper.like("title", keyword).or().like("description", keyword).or().like("username", keyword);
+        }
+        if (categoryId != null) {
+            queryWrapper.eq("category_id", categoryId);
         }
         queryWrapper.orderByDesc("create_time");
         
@@ -50,6 +59,19 @@ public class VideoController {
         response.put("pages", videoPage.getPages());
         response.put("current", videoPage.getCurrent());
         
+        return response;
+    }
+    
+    @GetMapping("/categories")
+    public Map<String, Object> getCategories() {
+        Map<String, Object> response = new HashMap<>();
+        
+        QueryWrapper<Category> queryWrapper = new QueryWrapper<>();
+        queryWrapper.orderByAsc("sort");
+        List<Category> categories = categoryMapper.selectList(queryWrapper);
+        
+        response.put("success", true);
+        response.put("data", categories);
         return response;
     }
     
@@ -89,6 +111,7 @@ public class VideoController {
     @PostMapping("/upload")
     public Map<String, Object> uploadVideo(@RequestParam String title,
                                            @RequestParam String description,
+                                           @RequestParam(required = false) Long categoryId,
                                            @RequestParam MultipartFile video,
                                            @RequestParam(required = false) MultipartFile cover,
                                            @RequestHeader("Authorization") String authorization) {
@@ -153,6 +176,9 @@ public class VideoController {
             
             // 保存视频信息到数据库
             Video videoEntity = new Video(title, description, videoUrl, coverUrl, user.getId(), username);
+            if (categoryId != null) {
+                videoEntity.setCategoryId(categoryId);
+            }
             videoMapper.insert(videoEntity);
             
             response.put("success", true);

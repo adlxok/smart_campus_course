@@ -80,6 +80,9 @@
         <div class="video-description">
           <h3><el-icon><Document /></el-icon> 视频简介</h3>
           <p>{{ video.description || '暂无描述' }}</p>
+          <div class="video-tags" v-if="video.categoryId">
+            <el-tag type="primary" size="small">{{ getCategoryName(video.categoryId) }}</el-tag>
+          </div>
         </div>
         
  <el-divider />
@@ -215,6 +218,7 @@ interface Video {
   userId: number;
   username: string;
   viewCount: number;
+  categoryId?: number;
   createTime: string;
 }
 
@@ -581,6 +585,7 @@ const toggleFollow = async () => {
 }
 
 onMounted(async () => {
+  await loadCategories()
   const storedUser = localStorage.getItem('user')
   if (storedUser) {
     userInfo.value = JSON.parse(storedUser)
@@ -734,6 +739,25 @@ const goToProfile = () => {
   if (video.value && video.value.userId) {
     router.push(`/profile?id=${video.value.userId}`)
   }
+}
+
+const categories = ref<{id: number, name: string}[]>([])
+
+const loadCategories = async () => {
+  try {
+    const response = await fetch('http://localhost:8080/api/video/categories')
+    const data = await response.json()
+    if (data.success) {
+      categories.value = data.data
+    }
+  } catch (error) {
+    console.error('加载分类失败', error)
+  }
+}
+
+const getCategoryName = (categoryId: number) => {
+  const cat = categories.value.find(c => c.id === categoryId)
+  return cat ? cat.name : '未分类'
 }
 </script>
 
@@ -1066,6 +1090,19 @@ const goToProfile = () => {
   line-height: 1.8;
   font-size: 14px;
   color: #666;
+}
+
+.video-tags {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.video-tags .el-tag {
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 16px;
 }
 
 .comment-section {
