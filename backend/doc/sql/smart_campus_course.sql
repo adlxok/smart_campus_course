@@ -194,4 +194,19 @@ CREATE TABLE `video_like`  (
 -- ----------------------------
 INSERT INTO `video_like` VALUES (14, 2, 5, '2026-03-10 20:33:16');
 
+-- ----------------------------
+-- Table structure for user_follow
+-- ----------------------------
+DROP TABLE IF EXISTS `user_follow`;
+CREATE TABLE `user_follow`  (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `follower_id` bigint NOT NULL,
+  `following_id` bigint NOT NULL,
+  `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_follower_following`(`follower_id` ASC, `following_id` ASC) USING BTREE,
+  INDEX `idx_follower_id`(`follower_id` ASC) USING BTREE,
+  INDEX `idx_following_id`(`following_id` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+
 SET FOREIGN_KEY_CHECKS = 1;

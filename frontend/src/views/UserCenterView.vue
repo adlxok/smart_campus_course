@@ -31,6 +31,10 @@
               <el-icon><Timer /></el-icon>
               <span>我的记录</span>
             </el-menu-item>
+            <el-menu-item index="follows" class="menu-item">
+              <el-icon><Star /></el-icon>
+              <span>我的关注</span>
+            </el-menu-item>
           </el-menu>
         </div>
       </div>
@@ -285,6 +289,71 @@
             </el-tab-pane>
           </el-tabs>
         </div>
+        
+        <div v-else-if="activeMenu === 'follows'" class="content-panel">
+          <div class="panel-header">
+            <h3>我的关注</h3>
+          </div>
+          <el-tabs v-model="followTab" @tab-change="handleFollowTabChange">
+            <el-tab-pane label="我的关注" name="followings">
+              <div v-if="loadingFollows" class="loading-records">
+                <el-icon class="is-loading" :size="40"><Loading /></el-icon>
+                <p>加载中...</p>
+              </div>
+              <el-empty v-else-if="followings.length === 0" description="暂无关注的用户" />
+              <div v-else class="follow-list">
+                <div class="follow-item" v-for="user in followings" :key="user.id" @click="goToUserProfile(user.id)">
+                  <el-avatar :size="50" :src="user.avatar || 'http://localhost:8080/backend/image/default_image/defaultImage.png'"></el-avatar>
+                  <div class="follow-info">
+                    <div class="follow-username">{{ user.username }}</div>
+                    <div class="follow-signature" v-if="user.signature">{{ user.signature }}</div>
+                    <div class="follow-stats">
+                      <span>{{ user.videoCount || 0 }} 视频</span>
+                      <span class="dot">·</span>
+                      <span>{{ user.followerCount || 0 }} 粉丝</span>
+                    </div>
+                  </div>
+                  <div class="follow-actions">
+                    <el-button type="primary" size="small" plain @click.stop="toggleUserFollow(user)">
+                      取消关注
+                    </el-button>
+                  </div>
+                </div>
+              </div>
+            </el-tab-pane>
+            <el-tab-pane label="我的粉丝" name="followers">
+              <div v-if="loadingFollows" class="loading-records">
+                <el-icon class="is-loading" :size="40"><Loading /></el-icon>
+                <p>加载中...</p>
+              </div>
+              <el-empty v-else-if="followers.length === 0" description="暂无粉丝" />
+              <div v-else class="follow-list">
+                <div class="follow-item" v-for="user in followers" :key="user.id" @click="goToUserProfile(user.id)">
+                  <el-avatar :size="50" :src="user.avatar || 'http://localhost:8080/backend/image/default_image/defaultImage.png'"></el-avatar>
+                  <div class="follow-info">
+                    <div class="follow-username">{{ user.username }}</div>
+                    <div class="follow-signature" v-if="user.signature">{{ user.signature }}</div>
+                    <div class="follow-stats">
+                      <span>{{ user.videoCount || 0 }} 视频</span>
+                      <span class="dot">·</span>
+                      <span>{{ user.followerCount || 0 }} 粉丝</span>
+                    </div>
+                  </div>
+                  <div class="follow-actions">
+                    <el-button 
+                      :type="user.isFollowing ? 'default' : 'primary'" 
+                      size="small" 
+                      plain 
+                      @click.stop="toggleUserFollow(user)"
+                    >
+                      {{ user.isFollowing ? '已关注' : '关注' }}
+                    </el-button>
+                  </div>
+                </div>
+              </div>
+            </el-tab-pane>
+          </el-tabs>
+        </div>
       </div>
     </div>
   </div>
@@ -381,6 +450,11 @@ const recordTab = ref('watch')
 const loadingRecords = ref(false)
 const likeRecords = ref<any[]>([])
 const favoriteRecords = ref<any[]>([])
+
+const followTab = ref('followings')
+const loadingFollows = ref(false)
+const followings = ref<any[]>([])
+const followers = ref<any[]>([])
 
 const avatarFile = ref<File | null>(null)
 const previewUrl = ref('')
@@ -633,6 +707,86 @@ const formatDate = (dateStr: string) => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+const handleFollowTabChange = (tab: string) => {
+  if (tab === 'followings') {
+    loadFollowings()
+  } else if (tab === 'followers') {
+    loadFollowers()
+  }
+}
+
+const loadFollowings = async () => {
+  loadingFollows.value = true
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch('http://localhost:8080/api/user/followings', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    const data = await response.json()
+    if (data.success) {
+      followings.value = data.followings.map((u: any) => ({ ...u, isFollowing: true }))
+    } else {
+      ElMessage.error(data.message || '获取关注列表失败')
+    }
+  } catch (error) {
+    ElMessage.error('获取关注列表失败')
+  } finally {
+    loadingFollows.value = false
+  }
+}
+
+const loadFollowers = async () => {
+  loadingFollows.value = true
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch('http://localhost:8080/api/user/followers', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    const data = await response.json()
+    if (data.success) {
+      followers.value = data.followers
+    } else {
+      ElMessage.error(data.message || '获取粉丝列表失败')
+    }
+  } catch (error) {
+    ElMessage.error('获取粉丝列表失败')
+  } finally {
+    loadingFollows.value = false
+  }
+}
+
+const goToUserProfile = (userId: number) => {
+  router.push(`/profile?id=${userId}`)
+}
+
+const toggleUserFollow = async (user: any) => {
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch(`http://localhost:8080/api/user/${user.id}/follow`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    const data = await response.json()
+    if (data.success) {
+      user.isFollowing = data.isFollowing
+      if (followTab.value === 'followings' && !data.isFollowing) {
+        followings.value = followings.value.filter(u => u.id !== user.id)
+      }
+      ElMessage.success(data.isFollowing ? '关注成功' : '已取消关注')
+    } else {
+      ElMessage.error(data.message || '操作失败')
+    }
+  } catch (error) {
+    ElMessage.error('操作失败')
+  }
 }
 
 onMounted(() => {
@@ -1136,6 +1290,66 @@ onMounted(() => {
 }
 
 .record-actions {
+  margin-left: 16px;
+}
+
+.follow-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.follow-item {
+  display: flex;
+  align-items: center;
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.follow-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.follow-info {
+  flex: 1;
+  margin-left: 16px;
+  min-width: 0;
+}
+
+.follow-username {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 4px;
+}
+
+.follow-signature {
+  font-size: 13px;
+  color: #909399;
+  margin-bottom: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.follow-stats {
+  font-size: 12px;
+  color: #c0c4cc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.follow-stats .dot {
+  font-size: 10px;
+}
+
+.follow-actions {
   margin-left: 16px;
 }
 

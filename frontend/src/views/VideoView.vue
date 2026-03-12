@@ -14,14 +14,24 @@
         <h1 class="video-title">{{ video.title }}</h1>
         
         <div class="video-meta">
-          <div class="author-info">
-            <el-avatar :size="44" :src="video.coverUrl || defaultCover">
-              {{ video.username.charAt(0).toUpperCase() }}
-            </el-avatar>
-            <div class="author-detail">
-              <span class="author-name">{{ video.username }}</span>
-              <span class="author-label">创作者</span>
+          <div class="author-section">
+            <div class="author-info" @click="goToProfile">
+              <el-avatar :size="44" :src="video.coverUrl || defaultCover">
+                {{ video.username.charAt(0).toUpperCase() }}
+              </el-avatar>
+              <div class="author-detail">
+                <span class="author-name">{{ video.username }}</span>
+                <span class="author-label">创作者</span>
+              </div>
             </div>
+            <el-button 
+              v-if="!isVideoOwner"
+              :type="isFollowing ? 'default' : 'primary'" 
+              size="small"
+              @click="toggleFollow"
+            >
+              {{ isFollowing ? '已关注' : '关注' }}
+            </el-button>
           </div>
           <div class="interaction-buttons">
             <button 
@@ -417,12 +427,17 @@ const isLiked = ref(false)
 const isFavorited = ref(false)
 const likeCount = ref(0)
 const favoriteCount = ref(0)
+const isFollowing = ref(false)
 
 const topLevelComments = computed(() => {
   return comments.value.filter(c => !c.parentId)
 })
 
 const totalComments = computed(() => commentTotal.value)
+
+const isVideoOwner = computed(() => {
+  return video.value && userInfo.value.id === video.value.userId
+})
 
 const setReply = (comment: Comment) => {
   replyTo.value = comment
@@ -516,6 +531,55 @@ const toggleFavorite = async () => {
   }
 }
 
+const loadFollowStatus = async (userId: number) => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+    
+    const response = await fetch(`http://localhost:8080/api/user/${userId}/follow-status`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    const data = await response.json()
+    
+    if (data.success) {
+      isFollowing.value = data.isFollowing
+    }
+  } catch (error) {
+    console.error('加载关注状态失败', error)
+  }
+}
+
+const toggleFollow = async () => {
+  if (!video.value) return
+  
+  const token = localStorage.getItem('token')
+  if (!token) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  
+  try {
+    const response = await fetch(`http://localhost:8080/api/user/${video.value.userId}/follow`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    const data = await response.json()
+    
+    if (data.success) {
+      isFollowing.value = data.isFollowing
+      ElMessage.success(data.isFollowing ? '关注成功' : '已取消关注')
+    } else {
+      ElMessage.error(data.message || '操作失败')
+    }
+  } catch (error) {
+    ElMessage.error('操作失败')
+  }
+}
+
 onMounted(async () => {
   const storedUser = localStorage.getItem('user')
   if (storedUser) {
@@ -540,6 +604,7 @@ onMounted(async () => {
         incrementViewCount(foundVideo.id)
         loadComments(foundVideo.id)
         loadInteractionInfo(foundVideo.id)
+        loadFollowStatus(foundVideo.userId)
       } else {
         ElMessage.error('视频不存在')
         router.push('/')
@@ -664,6 +729,12 @@ const formatDate = (dateStr: string) => {
   const date = new Date(dateStr)
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
+
+const goToProfile = () => {
+  if (video.value && video.value.userId) {
+    router.push(`/profile?id=${video.value.userId}`)
+  }
+}
 </script>
 
 <style scoped>
@@ -781,6 +852,18 @@ const formatDate = (dateStr: string) => {
   display: flex;
   align-items: center;
   gap: 12px;
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+
+.author-info:hover {
+  opacity: 0.8;
+}
+
+.author-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .author-detail {
