@@ -7,6 +7,7 @@ import com.example.backend.entity.UserFollow;
 import com.example.backend.mapper.UserMapper;
 import com.example.backend.mapper.VideoMapper;
 import com.example.backend.mapper.UserFollowMapper;
+import com.example.backend.service.NotificationService;
 import com.example.backend.utils.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -28,6 +29,9 @@ public class UserFollowController {
     
     @Autowired
     private VideoMapper videoMapper;
+    
+    @Autowired
+    private NotificationService notificationService;
     
     @PostMapping("/{userId}/follow")
     public Map<String, Object> toggleFollow(@PathVariable Long userId,
@@ -73,6 +77,7 @@ public class UserFollowController {
                 UserFollow follow = new UserFollow(currentUser.getId(), userId);
                 userFollowMapper.insert(follow);
                 isFollowing = true;
+                notificationService.sendFollowNotification(userId, currentUser.getId());
             }
             
             Long followerCount = userFollowMapper.countFollowers(userId);

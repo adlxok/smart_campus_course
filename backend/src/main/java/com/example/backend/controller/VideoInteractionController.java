@@ -9,6 +9,7 @@ import com.example.backend.mapper.UserMapper;
 import com.example.backend.mapper.VideoMapper;
 import com.example.backend.mapper.VideoLikeMapper;
 import com.example.backend.mapper.VideoFavoriteMapper;
+import com.example.backend.service.NotificationService;
 import com.example.backend.utils.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -33,6 +34,9 @@ public class VideoInteractionController {
     
     @Autowired
     private UserMapper userMapper;
+    
+    @Autowired
+    private NotificationService notificationService;
     
     @PostMapping("/{videoId}/like")
     public Map<String, Object> toggleLike(@PathVariable Long videoId,
@@ -72,6 +76,7 @@ public class VideoInteractionController {
                 VideoLike like = new VideoLike(videoId, user.getId());
                 videoLikeMapper.insert(like);
                 isLiked = true;
+                notificationService.sendLikeNotification(videoId, user.getId());
             }
             
             Long likeCount = videoLikeMapper.countByVideoId(videoId);
@@ -125,6 +130,7 @@ public class VideoInteractionController {
                 VideoFavorite favorite = new VideoFavorite(videoId, user.getId());
                 videoFavoriteMapper.insert(favorite);
                 isFavorited = true;
+                notificationService.sendFavoriteNotification(videoId, user.getId());
             }
             
             Long favoriteCount = videoFavoriteMapper.countByVideoId(videoId);

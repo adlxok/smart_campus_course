@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Search } from '@element-plus/icons-vue'
+import { Search, Bell } from '@element-plus/icons-vue'
+import axios from 'axios'
 
 const router = useRouter()
 const route = useRoute()
@@ -11,6 +12,7 @@ const userInfo = ref({
   username: '',
   avatar: ''
 })
+const unreadCount = ref(0)
 
 const activeIndex = computed(() => route.path)
 
@@ -23,27 +25,46 @@ const updateUserStatus = () => {
       username: user.username,
       avatar: user.avatar || 'http://localhost:8080/api/avatar/default'
     }
+    fetchUnreadCount()
   } else {
     isLoggedIn.value = false
     userInfo.value = {
       username: '',
       avatar: ''
     }
+    unreadCount.value = 0
+  }
+}
+
+const fetchUnreadCount = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    if (token) {
+      const response = await axios.get('http://localhost:8080/api/notification/unread-count', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      if (response.data.success) {
+        unreadCount.value = response.data.unreadCount
+      }
+    }
+  } catch (error) {
+    console.error('获取未读消息数失败:', error)
   }
 }
 
 onMounted(() => {
   updateUserStatus()
-  // 监听登录成功事件
   window.addEventListener('loginSuccess', updateUserStatus)
-  // 监听注册成功事件
   window.addEventListener('registerSuccess', updateUserStatus)
+  window.addEventListener('notificationRead', fetchUnreadCount)
 })
 
 onBeforeUnmount(() => {
-  // 移除事件监听器
   window.removeEventListener('loginSuccess', updateUserStatus)
   window.removeEventListener('registerSuccess', updateUserStatus)
+  window.removeEventListener('notificationRead', fetchUnreadCount)
 })
 
 const handleLogout = () => {
@@ -54,6 +75,7 @@ const handleLogout = () => {
     username: '',
     avatar: ''
   }
+  unreadCount.value = 0
   router.push('/login')
 }
 
@@ -100,6 +122,11 @@ const handleSearch = () => {
             </el-input>
           </div>
           <template v-if="isLoggedIn">
+            <div class="notification-bell" @click="router.push('/notifications')">
+              <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99">
+                <el-icon :size="20"><Bell /></el-icon>
+              </el-badge>
+            </div>
             <div class="user">
               <el-dropdown trigger="hover" @command="handleDropdownCommand">
                 <div class="user-info">
@@ -111,6 +138,10 @@ const handleSearch = () => {
                   <el-dropdown-menu>
                     <el-dropdown-item command="/creator">创作者中心</el-dropdown-item>
                     <el-dropdown-item command="/user">用户中心</el-dropdown-item>
+                    <el-dropdown-item command="/notifications">
+                      <span>消息</span>
+                      <el-badge v-if="unreadCount > 0" :value="unreadCount" class="notification-badge" />
+                    </el-dropdown-item>
                     <el-dropdown-item divided command="logout">登出</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
@@ -238,6 +269,27 @@ const handleSearch = () => {
 .username {
   color: #606266;
   font-size: 14px;
+}
+
+.notification-bell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: #606266;
+}
+
+.notification-bell:hover {
+  background-color: #ecf5ff;
+  color: #409eff;
+}
+
+.notification-badge {
+  margin-left: 8px;
 }
 
 /* 主内容区域 */
