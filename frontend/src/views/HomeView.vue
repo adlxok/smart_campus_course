@@ -4,7 +4,7 @@
     <div class="main-content">
       <div class="content-container">
         <!-- 轮播图 -->
-        <div v-if="activeCategory === 'recommend' && !loading" class="carousel-container">
+        <div v-if="!loading" class="carousel-container">
           <el-carousel :interval="5000" type="card" height="200px">
             <el-carousel-item v-for="item in carouselItems" :key="item.id">
               <div class="carousel-item" @click="playVideo(item.video)">
