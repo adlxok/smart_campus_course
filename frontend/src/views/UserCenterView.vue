@@ -215,15 +215,73 @@
           <div class="panel-header">
             <h3>我的记录</h3>
           </div>
-          <el-tabs v-model="recordTab">
+          <el-tabs v-model="recordTab" @tab-change="handleRecordTabChange">
             <el-tab-pane label="观看历史" name="watch">
               <el-empty description="暂无观看记录" />
             </el-tab-pane>
             <el-tab-pane label="点赞记录" name="like">
-              <el-empty description="暂无点赞记录" />
+              <div v-if="loadingRecords" class="loading-records">
+                <el-icon class="is-loading" :size="40"><Loading /></el-icon>
+                <p>加载中...</p>
+              </div>
+              <el-empty v-else-if="likeRecords.length === 0" description="暂无点赞记录" />
+              <div v-else class="record-list">
+                <div class="record-item" v-for="video in likeRecords" :key="video.id" @click="goToVideo(video.id)">
+                  <div class="record-cover">
+                    <img :src="video.coverUrl || 'http://localhost:8080/backend/image/default_image/defaultImage.png'" alt="视频封面" />
+                    <div class="play-overlay">
+                      <el-icon :size="24"><VideoPlay /></el-icon>
+                    </div>
+                  </div>
+                  <div class="record-info">
+                    <div class="record-title">{{ video.title }}</div>
+                    <div class="record-meta">
+                      <span class="author">{{ video.username }}</span>
+                      <span class="dot">·</span>
+                      <span>{{ formatViewCount(video.viewCount) }}次观看</span>
+                    </div>
+                    <div class="record-time">点赞于 {{ formatDate(video.likeTime) }}</div>
+                  </div>
+                  <div class="record-actions">
+                    <el-button type="danger" size="small" text @click.stop="removeLike(video.id)">
+                      <el-icon><Delete /></el-icon>
+                      取消点赞
+                    </el-button>
+                  </div>
+                </div>
+              </div>
             </el-tab-pane>
             <el-tab-pane label="收藏记录" name="favorite">
-              <el-empty description="暂无收藏记录" />
+              <div v-if="loadingRecords" class="loading-records">
+                <el-icon class="is-loading" :size="40"><Loading /></el-icon>
+                <p>加载中...</p>
+              </div>
+              <el-empty v-else-if="favoriteRecords.length === 0" description="暂无收藏记录" />
+              <div v-else class="record-list">
+                <div class="record-item" v-for="video in favoriteRecords" :key="video.id" @click="goToVideo(video.id)">
+                  <div class="record-cover">
+                    <img :src="video.coverUrl || 'http://localhost:8080/backend/image/default_image/defaultImage.png'" alt="视频封面" />
+                    <div class="play-overlay">
+                      <el-icon :size="24"><VideoPlay /></el-icon>
+                    </div>
+                  </div>
+                  <div class="record-info">
+                    <div class="record-title">{{ video.title }}</div>
+                    <div class="record-meta">
+                      <span class="author">{{ video.username }}</span>
+                      <span class="dot">·</span>
+                      <span>{{ formatViewCount(video.viewCount) }}次观看</span>
+                    </div>
+                    <div class="record-time">收藏于 {{ formatDate(video.favoriteTime) }}</div>
+                  </div>
+                  <div class="record-actions">
+                    <el-button type="danger" size="small" text @click.stop="removeFavorite(video.id)">
+                      <el-icon><Delete /></el-icon>
+                      取消收藏
+                    </el-button>
+                  </div>
+                </div>
+              </div>
             </el-tab-pane>
           </el-tabs>
         </div>
@@ -234,11 +292,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   House, User, Picture, Star, Trophy, Lock, Close, Money, Timer, Check, Share,
-  Present, Coin, Upload
+  Present, Coin, Upload, VideoPlay, Delete, Loading
 } from '@element-plus/icons-vue'
+
+const router = useRouter()
 
 const activeMenu = ref('home')
 
@@ -317,6 +378,9 @@ const verifyForm = ref({
 })
 
 const recordTab = ref('watch')
+const loadingRecords = ref(false)
+const likeRecords = ref<any[]>([])
+const favoriteRecords = ref<any[]>([])
 
 const avatarFile = ref<File | null>(null)
 const previewUrl = ref('')
@@ -458,6 +522,117 @@ const changePassword = async () => {
 const copyInviteLink = () => {
   navigator.clipboard.writeText(inviteLink.value)
   ElMessage.success('链接已复制到剪贴板')
+}
+
+const handleRecordTabChange = (tab: string) => {
+  if (tab === 'like') {
+    loadLikeRecords()
+  } else if (tab === 'favorite') {
+    loadFavoriteRecords()
+  }
+}
+
+const loadLikeRecords = async () => {
+  loadingRecords.value = true
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch('http://localhost:8080/api/video/likes', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    const data = await response.json()
+    if (data.success) {
+      likeRecords.value = data.likes
+    } else {
+      ElMessage.error(data.message || '获取点赞记录失败')
+    }
+  } catch (error) {
+    ElMessage.error('获取点赞记录失败')
+  } finally {
+    loadingRecords.value = false
+  }
+}
+
+const loadFavoriteRecords = async () => {
+  loadingRecords.value = true
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch('http://localhost:8080/api/video/favorites', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    const data = await response.json()
+    if (data.success) {
+      favoriteRecords.value = data.favorites
+    } else {
+      ElMessage.error(data.message || '获取收藏记录失败')
+    }
+  } catch (error) {
+    ElMessage.error('获取收藏记录失败')
+  } finally {
+    loadingRecords.value = false
+  }
+}
+
+const goToVideo = (videoId: number) => {
+  router.push(`/video?id=${videoId}`)
+}
+
+const removeLike = async (videoId: number) => {
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch(`http://localhost:8080/api/video/${videoId}/like`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    const data = await response.json()
+    if (data.success) {
+      ElMessage.success('已取消点赞')
+      likeRecords.value = likeRecords.value.filter(v => v.id !== videoId)
+    } else {
+      ElMessage.error(data.message || '操作失败')
+    }
+  } catch (error) {
+    ElMessage.error('操作失败')
+  }
+}
+
+const removeFavorite = async (videoId: number) => {
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch(`http://localhost:8080/api/video/${videoId}/favorite`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    const data = await response.json()
+    if (data.success) {
+      ElMessage.success('已取消收藏')
+      favoriteRecords.value = favoriteRecords.value.filter(v => v.id !== videoId)
+    } else {
+      ElMessage.error(data.message || '操作失败')
+    }
+  } catch (error) {
+    ElMessage.error('操作失败')
+  }
+}
+
+const formatViewCount = (count: number) => {
+  if (count >= 10000) {
+    return (count / 10000).toFixed(1) + '万'
+  }
+  return count.toString()
+}
+
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
 onMounted(() => {
@@ -843,6 +1018,125 @@ onMounted(() => {
 
 .invite-stats {
   margin-top: 30px;
+}
+
+.loading-records {
+  text-align: center;
+  padding: 60px 0;
+  color: #909399;
+}
+
+.loading-records .el-icon {
+  animation: rotating 2s linear infinite;
+}
+
+@keyframes rotating {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.record-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.record-item {
+  display: flex;
+  align-items: center;
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.record-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.record-cover {
+  position: relative;
+  width: 160px;
+  height: 90px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.record-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.record-cover .play-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.record-item:hover .play-overlay {
+  opacity: 1;
+}
+
+.play-overlay .el-icon {
+  color: #fff;
+  background-color: rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
+  padding: 8px;
+}
+
+.record-info {
+  flex: 1;
+  margin-left: 16px;
+  min-width: 0;
+}
+
+.record-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.record-meta {
+  font-size: 13px;
+  color: #909399;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.record-meta .author {
+  color: #606266;
+}
+
+.record-meta .dot {
+  font-size: 10px;
+}
+
+.record-time {
+  font-size: 12px;
+  color: #c0c4cc;
+}
+
+.record-actions {
+  margin-left: 16px;
 }
 
 @media (max-width: 768px) {

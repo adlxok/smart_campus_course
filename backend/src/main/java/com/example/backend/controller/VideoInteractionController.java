@@ -230,4 +230,56 @@ public class VideoInteractionController {
         
         return response;
     }
+    
+    @GetMapping("/likes")
+    public Map<String, Object> getUserLikes(@RequestHeader("Authorization") String authorization) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            String token = authorization.substring(7);
+            String username = JwtUtil.getUsernameFromToken(token);
+            
+            QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
+            userQueryWrapper.eq("username", username);
+            User user = userMapper.selectOne(userQueryWrapper);
+            
+            if (user == null) {
+                response.put("success", false);
+                response.put("message", "用户不存在");
+                return response;
+            }
+            
+            QueryWrapper<VideoLike> likeQueryWrapper = new QueryWrapper<>();
+            likeQueryWrapper.eq("user_id", user.getId()).orderByDesc("create_time");
+            List<VideoLike> likes = videoLikeMapper.selectList(likeQueryWrapper);
+            
+            List<Map<String, Object>> videoList = new ArrayList<>();
+            for (VideoLike like : likes) {
+                Video video = videoMapper.selectById(like.getVideoId());
+                if (video != null) {
+                    Map<String, Object> videoInfo = new HashMap<>();
+                    videoInfo.put("id", video.getId());
+                    videoInfo.put("title", video.getTitle());
+                    videoInfo.put("description", video.getDescription());
+                    videoInfo.put("videoUrl", video.getVideoUrl());
+                    videoInfo.put("coverUrl", video.getCoverUrl());
+                    videoInfo.put("viewCount", video.getViewCount());
+                    videoInfo.put("userId", video.getUserId());
+                    videoInfo.put("username", video.getUsername());
+                    videoInfo.put("createTime", video.getCreateTime());
+                    videoInfo.put("likeTime", like.getCreateTime());
+                    videoList.add(videoInfo);
+                }
+            }
+            
+            response.put("success", true);
+            response.put("likes", videoList);
+            response.put("total", videoList.size());
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "获取失败: " + e.getMessage());
+        }
+        
+        return response;
+    }
 }
