@@ -32,6 +32,14 @@
             >
               {{ isFollowing ? '已关注' : '关注' }}
             </el-button>
+            <el-button 
+              v-if="!isVideoOwner && isFollowing"
+              type="default" 
+              size="small"
+              @click="startChat"
+            >
+              私信
+            </el-button>
           </div>
           <div class="interaction-buttons">
             <button 
@@ -585,6 +593,34 @@ const toggleFollow = async () => {
       ElMessage.success(data.isFollowing ? '关注成功' : '已取消关注')
     } else {
       ElMessage.error(data.message || '操作失败')
+    }
+  } catch (error) {
+    ElMessage.error('操作失败')
+  }
+}
+
+const startChat = async () => {
+  if (!video.value) return
+  
+  const token = localStorage.getItem('token')
+  if (!token) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  
+  try {
+    const response = await fetch(`http://localhost:8080/api/chat/conversation/${video.value.userId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    const data = await response.json()
+    
+    if (data.success) {
+      router.push({ path: '/notifications', query: { chat: data.conversationId } })
+    } else {
+      ElMessage.error(data.message || '创建会话失败')
     }
   } catch (error) {
     ElMessage.error('操作失败')

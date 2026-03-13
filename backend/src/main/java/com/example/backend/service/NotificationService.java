@@ -185,4 +185,47 @@ public class NotificationService {
         result.put("unreadCount", unreadCount);
         return result;
     }
+    
+    public void deleteFavoriteNotification(Long videoId, Long fromUserId) {
+        Video video = videoMapper.selectById(videoId);
+        if (video == null) {
+            return;
+        }
+        
+        Long toUserId = video.getUserId();
+        
+        QueryWrapper<Notification> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("user_id", toUserId)
+                   .eq("type", "FAVORITE")
+                   .eq("related_id", videoId)
+                   .eq("from_user_id", fromUserId);
+        
+        notificationMapper.delete(queryWrapper);
+    }
+    
+    public void deleteLikeNotification(Long videoId, Long fromUserId) {
+        Video video = videoMapper.selectById(videoId);
+        if (video == null) {
+            return;
+        }
+        
+        Long toUserId = video.getUserId();
+        
+        QueryWrapper<Notification> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("user_id", toUserId)
+                   .eq("type", "LIKE")
+                   .eq("related_id", videoId)
+                   .eq("from_user_id", fromUserId);
+        
+        notificationMapper.delete(queryWrapper);
+    }
+    
+    public void deleteFollowNotification(Long toUserId, Long fromUserId) {
+        QueryWrapper<Notification> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("user_id", toUserId)
+                   .eq("type", "FOLLOW")
+                   .eq("from_user_id", fromUserId);
+        
+        notificationMapper.delete(queryWrapper);
+    }
 }

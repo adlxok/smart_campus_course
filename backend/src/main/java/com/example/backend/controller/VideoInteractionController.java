@@ -72,6 +72,7 @@ public class VideoInteractionController {
             if (existingLike != null) {
                 videoLikeMapper.deleteById(existingLike.getId());
                 isLiked = false;
+                notificationService.deleteLikeNotification(videoId, user.getId());
             } else {
                 VideoLike like = new VideoLike(videoId, user.getId());
                 videoLikeMapper.insert(like);
@@ -126,6 +127,7 @@ public class VideoInteractionController {
             if (existingFavorite != null) {
                 videoFavoriteMapper.deleteById(existingFavorite.getId());
                 isFavorited = false;
+                notificationService.deleteFavoriteNotification(videoId, user.getId());
             } else {
                 VideoFavorite favorite = new VideoFavorite(videoId, user.getId());
                 videoFavoriteMapper.insert(favorite);

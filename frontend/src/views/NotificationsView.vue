@@ -113,9 +113,19 @@ const fetchConversations = async () => {
   }
 }
 
-const selectConversation = (conversationId: number) => {
+const selectConversation = async (conversationId: number) => {
   currentConversationId.value = conversationId
-  fetchMessages(conversationId)
+  await fetchMessages(conversationId)
+  markConversationAsRead(conversationId)
+}
+
+const markConversationAsRead = (conversationId: number) => {
+  const conversation = conversations.value.find(c => c.id === conversationId)
+  if (conversation && conversation.unreadCount > 0) {
+    chatUnreadCount.value -= conversation.unreadCount
+    conversation.unreadCount = 0
+  }
+  window.dispatchEvent(new CustomEvent('notificationRead'))
 }
 
 const fetchMessages = async (conversationId: number) => {
@@ -130,7 +140,6 @@ const fetchMessages = async (conversationId: number) => {
     if (response.data.success) {
       messages.value = response.data.messages
       otherUser.value = response.data.otherUser
-      window.dispatchEvent(new CustomEvent('notificationRead'))
       nextTick(() => {
         scrollToBottom()
       })

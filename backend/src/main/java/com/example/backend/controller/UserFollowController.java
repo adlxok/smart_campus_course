@@ -73,6 +73,7 @@ public class UserFollowController {
             if (existingFollow != null) {
                 userFollowMapper.deleteById(existingFollow.getId());
                 isFollowing = false;
+                notificationService.deleteFollowNotification(userId, currentUser.getId());
             } else {
                 UserFollow follow = new UserFollow(currentUser.getId(), userId);
                 userFollowMapper.insert(follow);
