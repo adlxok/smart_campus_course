@@ -228,6 +228,8 @@ public class UserFollowController {
                 if (user != null) {
                     Map<String, Object> userInfo = getUserInfo(user);
                     userInfo.put("followTime", follow.getCreateTime());
+                    boolean isFollowing = userFollowMapper.existsByFollowerIdAndFollowingId(currentUser.getId(), user.getId());
+                    userInfo.put("isFollowing", isFollowing);
                     followerList.add(userInfo);
                 }
             }

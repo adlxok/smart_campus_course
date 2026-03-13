@@ -35,6 +35,10 @@
               <el-icon><Star /></el-icon>
               <span>我的关注</span>
             </el-menu-item>
+            <el-menu-item index="followers" class="menu-item">
+              <el-icon><User /></el-icon>
+              <span>我的粉丝</span>
+            </el-menu-item>
           </el-menu>
         </div>
       </div>
@@ -294,65 +298,65 @@
           <div class="panel-header">
             <h3>我的关注</h3>
           </div>
-          <el-tabs v-model="followTab" @tab-change="handleFollowTabChange">
-            <el-tab-pane label="我的关注" name="followings">
-              <div v-if="loadingFollows" class="loading-records">
-                <el-icon class="is-loading" :size="40"><Loading /></el-icon>
-                <p>加载中...</p>
-              </div>
-              <el-empty v-else-if="followings.length === 0" description="暂无关注的用户" />
-              <div v-else class="follow-list">
-                <div class="follow-item" v-for="user in followings" :key="user.id" @click="goToUserProfile(user.id)">
-                  <el-avatar :size="50" :src="user.avatar || 'http://localhost:8080/backend/image/default_image/defaultImage.png'"></el-avatar>
-                  <div class="follow-info">
-                    <div class="follow-username">{{ user.username }}</div>
-                    <div class="follow-signature" v-if="user.signature">{{ user.signature }}</div>
-                    <div class="follow-stats">
-                      <span>{{ user.videoCount || 0 }} 视频</span>
-                      <span class="dot">·</span>
-                      <span>{{ user.followerCount || 0 }} 粉丝</span>
-                    </div>
-                  </div>
-                  <div class="follow-actions">
-                    <el-button type="primary" size="small" plain @click.stop="toggleUserFollow(user)">
-                      取消关注
-                    </el-button>
-                  </div>
+          <div v-if="loadingFollows" class="loading-records">
+            <el-icon class="is-loading" :size="40"><Loading /></el-icon>
+            <p>加载中...</p>
+          </div>
+          <el-empty v-else-if="followings.length === 0" description="暂无关注的用户" />
+          <div v-else class="follow-list">
+            <div class="follow-item" v-for="user in followings" :key="user.id" @click="goToUserProfile(user.id)">
+              <el-avatar :size="50" :src="user.avatar || 'http://localhost:8080/backend/image/default_image/defaultImage.png'"></el-avatar>
+              <div class="follow-info">
+                <div class="follow-username">{{ user.username }}</div>
+                <div class="follow-signature" v-if="user.signature">{{ user.signature }}</div>
+                <div class="follow-stats">
+                  <span>{{ user.videoCount || 0 }} 视频</span>
+                  <span class="dot">·</span>
+                  <span>{{ user.followerCount || 0 }} 粉丝</span>
                 </div>
               </div>
-            </el-tab-pane>
-            <el-tab-pane label="我的粉丝" name="followers">
-              <div v-if="loadingFollows" class="loading-records">
-                <el-icon class="is-loading" :size="40"><Loading /></el-icon>
-                <p>加载中...</p>
+              <div class="follow-actions">
+                <el-button type="primary" size="small" plain @click.stop="toggleUserFollow(user)">
+                  取消关注
+                </el-button>
               </div>
-              <el-empty v-else-if="followers.length === 0" description="暂无粉丝" />
-              <div v-else class="follow-list">
-                <div class="follow-item" v-for="user in followers" :key="user.id" @click="goToUserProfile(user.id)">
-                  <el-avatar :size="50" :src="user.avatar || 'http://localhost:8080/backend/image/default_image/defaultImage.png'"></el-avatar>
-                  <div class="follow-info">
-                    <div class="follow-username">{{ user.username }}</div>
-                    <div class="follow-signature" v-if="user.signature">{{ user.signature }}</div>
-                    <div class="follow-stats">
-                      <span>{{ user.videoCount || 0 }} 视频</span>
-                      <span class="dot">·</span>
-                      <span>{{ user.followerCount || 0 }} 粉丝</span>
-                    </div>
-                  </div>
-                  <div class="follow-actions">
-                    <el-button 
-                      :type="user.isFollowing ? 'default' : 'primary'" 
-                      size="small" 
-                      plain 
-                      @click.stop="toggleUserFollow(user)"
-                    >
-                      {{ user.isFollowing ? '已关注' : '关注' }}
-                    </el-button>
-                  </div>
+            </div>
+          </div>
+        </div>
+        
+        <div v-else-if="activeMenu === 'followers'" class="content-panel">
+          <div class="panel-header">
+            <h3>我的粉丝</h3>
+          </div>
+          <div v-if="loadingFollows" class="loading-records">
+            <el-icon class="is-loading" :size="40"><Loading /></el-icon>
+            <p>加载中...</p>
+          </div>
+          <el-empty v-else-if="followers.length === 0" description="暂无粉丝" />
+          <div v-else class="follow-list">
+            <div class="follow-item" v-for="user in followers" :key="user.id" @click="goToUserProfile(user.id)">
+              <el-avatar :size="50" :src="user.avatar || 'http://localhost:8080/backend/image/default_image/defaultImage.png'"></el-avatar>
+              <div class="follow-info">
+                <div class="follow-username">{{ user.username }}</div>
+                <div class="follow-signature" v-if="user.signature">{{ user.signature }}</div>
+                <div class="follow-stats">
+                  <span>{{ user.videoCount || 0 }} 视频</span>
+                  <span class="dot">·</span>
+                  <span>{{ user.followerCount || 0 }} 粉丝</span>
                 </div>
               </div>
-            </el-tab-pane>
-          </el-tabs>
+              <div class="follow-actions">
+                <el-button 
+                  :type="user.isFollowing ? 'default' : 'primary'" 
+                  size="small" 
+                  plain 
+                  @click.stop="toggleUserFollow(user)"
+                >
+                  {{ user.isFollowing ? '已关注' : '关注' }}
+                </el-button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -465,6 +469,11 @@ const inviteLink = computed(() => {
 
 const handleMenuSelect = (index: string) => {
   activeMenu.value = index
+  if (index === 'follows') {
+    loadFollowings()
+  } else if (index === 'followers') {
+    loadFollowers()
+  }
 }
 
 const claimReward = (type: string) => {

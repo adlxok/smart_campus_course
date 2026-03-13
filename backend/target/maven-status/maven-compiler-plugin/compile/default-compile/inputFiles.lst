@@ -3,6 +3,7 @@ D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\e
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\mapper\UserFollowMapper.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\kafka\NotificationConsumer.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\VideoLike.java
+D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\mapper\PrivateMessageMapper.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\utils\JwtUtil.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\config\JwtFilter.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\dto\NotificationMessage.java
@@ -14,7 +15,9 @@ D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\c
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\UserFollowController.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\HelloController.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\VideoController.java
+D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\service\PrivateMessageService.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\TagController.java
+D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\mapper\ConversationMapper.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\mapper\VideoFavoriteMapper.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\mapper\VideoTagMapper.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\Tag.java
@@ -29,12 +32,15 @@ D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\m
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\service\NotificationService.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\kafka\NotificationProducer.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\BackendApplication.java
+D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\PrivateMessage.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\Category.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\NotificationController.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\VideoInteractionController.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\Comment.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\mapper\CommentMapper.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\UserFollow.java
+D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\Conversation.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\Video.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\Notification.java
+D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\PrivateMessageController.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\mapper\VideoLikeMapper.java

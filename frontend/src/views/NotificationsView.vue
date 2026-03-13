@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { Message, Bell } from '@element-plus/icons-vue'
+import { ref, onMounted, computed, nextTick, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { Message, Bell, ChatDotRound } from '@element-plus/icons-vue'
 import axios from 'axios'
 
 interface Notification {
@@ -18,18 +18,53 @@ interface Notification {
   createTime: string
 }
 
+interface Conversation {
+  id: number
+  otherUserId: number
+  otherUsername: string
+  otherUserAvatar: string
+  lastMessage: string
+  lastMessageTime: string
+  unreadCount: number
+}
+
+interface Message {
+  id: number
+  senderId: number
+  receiverId: number
+  content: string
+  createTime: string
+  isMine: boolean
+}
+
+interface OtherUser {
+  id: number
+  username: string
+  avatar: string
+}
+
 const router = useRouter()
+const route = useRoute()
 const notifications = ref<Notification[]>([])
+const conversations = ref<Conversation[]>([])
+const messages = ref<Message[]>([])
+const currentConversationId = ref<number | null>(null)
+const otherUser = ref<OtherUser | null>(null)
+const newMessage = ref('')
 const unreadCount = ref(0)
+const chatUnreadCount = ref(0)
 const loading = ref(true)
+const chatLoading = ref(false)
+const sending = ref(false)
 const activeMenu = ref('my')
+const messagesContainer = ref<HTMLElement | null>(null)
 
 const myNotifications = computed(() => {
-  return notifications.value.filter(n => n.type === 'COMMENT')
+  return notifications.value.filter(n => n.type === 'FAVORITE' || n.type === 'LIKE' || n.type === 'FOLLOW' || n.type === 'COMMENT')
 })
 
 const systemNotifications = computed(() => {
-  return notifications.value.filter(n => n.type === 'FAVORITE' || n.type === 'LIKE' || n.type === 'FOLLOW' || n.type === 'SYSTEM')
+  return notifications.value.filter(n => n.type === 'SYSTEM')
 })
 
 const currentNotifications = computed(() => {
@@ -58,6 +93,91 @@ const fetchNotifications = async () => {
     console.error('获取通知失败:', error)
   } finally {
     loading.value = false
+  }
+}
+
+const fetchConversations = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    const response = await axios.get('http://localhost:8080/api/chat/conversations', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    if (response.data.success) {
+      conversations.value = response.data.conversations
+      chatUnreadCount.value = conversations.value.reduce((sum, c) => sum + c.unreadCount, 0)
+    }
+  } catch (error) {
+    console.error('获取会话列表失败:', error)
+  }
+}
+
+const selectConversation = (conversationId: number) => {
+  currentConversationId.value = conversationId
+  fetchMessages(conversationId)
+}
+
+const fetchMessages = async (conversationId: number) => {
+  chatLoading.value = true
+  try {
+    const token = localStorage.getItem('token')
+    const response = await axios.get(`http://localhost:8080/api/chat/messages/${conversationId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    if (response.data.success) {
+      messages.value = response.data.messages
+      otherUser.value = response.data.otherUser
+      window.dispatchEvent(new CustomEvent('notificationRead'))
+      nextTick(() => {
+        scrollToBottom()
+      })
+    }
+  } catch (error) {
+    console.error('获取消息失败:', error)
+  } finally {
+    chatLoading.value = false
+  }
+}
+
+const sendMessage = async () => {
+  if (!newMessage.value.trim() || !otherUser.value || sending.value) return
+  
+  sending.value = true
+  try {
+    const token = localStorage.getItem('token')
+    const response = await axios.post('http://localhost:8080/api/chat/send', {
+      receiverId: otherUser.value.id,
+      content: newMessage.value.trim()
+    }, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    if (response.data.success) {
+      newMessage.value = ''
+      if (currentConversationId.value) {
+        fetchMessages(currentConversationId.value)
+        fetchConversations()
+      }
+    }
+  } catch (error: any) {
+    if (error.response?.data?.message) {
+      alert(error.response.data.message)
+    } else {
+      console.error('发送消息失败:', error)
+    }
+  } finally {
+    sending.value = false
+  }
+}
+
+const scrollToBottom = () => {
+  if (messagesContainer.value) {
+    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
   }
 }
 
@@ -116,6 +236,12 @@ const goToUserProfile = (event: Event, userId: number) => {
   }
 }
 
+const goToOtherUserProfile = () => {
+  if (otherUser.value) {
+    router.push({ path: '/profile', query: { id: otherUser.value.id } })
+  }
+}
+
 const getAvatarUrl = (avatar: string) => {
   if (!avatar) {
     return 'http://localhost:8080/api/avatar/default'
@@ -143,12 +269,32 @@ const formatTime = (time: string) => {
   return date.toLocaleDateString()
 }
 
-const handleMenuSelect = (key: string) => {
-  activeMenu.value = key
+const formatMessageTime = (time: string) => {
+  const date = new Date(time)
+  const hours = date.getHours().toString().padStart(2, '0')
+  const minutes = date.getMinutes().toString().padStart(2, '0')
+  return `${hours}:${minutes}`
 }
 
-onMounted(() => {
-  fetchNotifications()
+const handleMenuSelect = (key: string) => {
+  activeMenu.value = key
+  if (key === 'chat' && conversations.value.length > 0 && !currentConversationId.value) {
+    selectConversation(conversations.value[0].id)
+  }
+}
+
+onMounted(async () => {
+  await fetchNotifications()
+  await fetchConversations()
+  
+  const chatIdFromQuery = route.query.chat ? Number(route.query.chat) : null
+  if (chatIdFromQuery) {
+    activeMenu.value = 'chat'
+    const exists = conversations.value.find(c => c.id === chatIdFromQuery)
+    if (exists) {
+      selectConversation(chatIdFromQuery)
+    }
+  }
 })
 </script>
 
@@ -159,6 +305,20 @@ onMounted(() => {
         <h3>消息中心</h3>
       </div>
       <div class="sidebar-menu">
+        <div 
+          class="menu-item" 
+          :class="{ active: activeMenu === 'chat' }"
+          @click="handleMenuSelect('chat')"
+        >
+          <el-icon><ChatDotRound /></el-icon>
+          <span>私信</span>
+          <el-badge 
+            v-if="chatUnreadCount > 0" 
+            :value="chatUnreadCount" 
+            :max="99"
+            class="menu-badge"
+          />
+        </div>
         <div 
           class="menu-item" 
           :class="{ active: activeMenu === 'my' }"
@@ -190,7 +350,86 @@ onMounted(() => {
       </div>
     </div>
     
-    <div class="main-content">
+    <!-- 私聊界面 -->
+    <div v-if="activeMenu === 'chat'" class="chat-main">
+      <div class="chat-sidebar">
+        <div class="chat-sidebar-header">
+          <h4>会话列表</h4>
+        </div>
+        <div class="conversation-list" v-loading="loading">
+          <div v-if="conversations.length === 0 && !loading" class="empty-conversations">
+            <el-empty description="暂无私信" :image-size="60" />
+          </div>
+          <div 
+            v-for="conversation in conversations" 
+            :key="conversation.id"
+            class="conversation-item"
+            :class="{ active: currentConversationId === conversation.id }"
+            @click="selectConversation(conversation.id)"
+          >
+            <el-badge :value="conversation.unreadCount" :hidden="conversation.unreadCount === 0" :max="99">
+              <el-avatar :size="40" :src="getAvatarUrl(conversation.otherUserAvatar)" />
+            </el-badge>
+            <div class="conversation-info">
+              <div class="conversation-header">
+                <span class="conversation-name">{{ conversation.otherUsername }}</span>
+                <span class="conversation-time">{{ formatTime(conversation.lastMessageTime) }}</span>
+              </div>
+              <div class="conversation-last-message">{{ conversation.lastMessage }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="chat-content">
+        <div v-if="!currentConversationId || !otherUser" class="empty-chat">
+          <el-empty description="选择一个会话开始聊天" />
+        </div>
+        <template v-else>
+          <div class="chat-header">
+            <div class="header-user" @click="goToOtherUserProfile">
+              <el-avatar :size="32" :src="getAvatarUrl(otherUser.avatar)" />
+              <span class="username">{{ otherUser.username }}</span>
+            </div>
+          </div>
+          
+          <div class="chat-messages" ref="messagesContainer" v-loading="chatLoading">
+            <div class="message-list">
+              <div 
+                v-for="message in messages" 
+                :key="message.id"
+                class="message-item"
+                :class="{ mine: message.isMine }"
+              >
+                <div v-if="!message.isMine" class="message-avatar">
+                  <el-avatar :size="32" :src="getAvatarUrl(otherUser.avatar)" />
+                </div>
+                <div class="message-content">
+                  <div class="message-bubble">{{ message.content }}</div>
+                  <div class="message-time">{{ formatMessageTime(message.createTime) }}</div>
+                </div>
+                <div v-if="message.isMine" class="message-avatar">
+                  <el-avatar :size="32" :src="getAvatarUrl('')" />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="chat-input">
+            <el-input
+              v-model="newMessage"
+              placeholder="输入消息..."
+              @keyup.enter="sendMessage"
+              :disabled="sending"
+            />
+            <el-button type="primary" @click="sendMessage" :loading="sending" class="send-button">发送</el-button>
+          </div>
+        </template>
+      </div>
+    </div>
+    
+    <!-- 通知列表 -->
+    <div v-else class="main-content">
       <div class="content-header">
         <h2>{{ activeMenu === 'my' ? '我的消息' : '系统通知' }}</h2>
         <el-button 
@@ -204,7 +443,7 @@ onMounted(() => {
       </div>
       
       <div class="content-body" v-loading="loading">
-        <div v-if="currentNotifications.length === 0 && !loading" class="empty-state">
+        <div v-if="currentNotifications.length === 0" class="empty-state">
           <el-empty :description="activeMenu === 'my' ? '暂无消息通知' : '暂无系统通知'" />
         </div>
         
@@ -303,6 +542,218 @@ onMounted(() => {
   margin-left: 8px;
 }
 
+/* 私聊界面样式 */
+.chat-main {
+  flex: 1;
+  display: flex;
+  background-color: #f5f7fa;
+}
+
+.chat-sidebar {
+  width: 260px;
+  background-color: #fff;
+  border-right: 1px solid #e4e7ed;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-sidebar-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.chat-sidebar-header h4 {
+  margin: 0;
+  font-size: 14px;
+  color: #303133;
+  font-weight: 600;
+}
+
+.conversation-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.empty-conversations {
+  padding: 30px 16px;
+}
+
+.conversation-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.conversation-item:hover {
+  background-color: #f5f7fa;
+}
+
+.conversation-item.active {
+  background-color: #ecf5ff;
+}
+
+.conversation-item .el-badge {
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+.conversation-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.conversation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.conversation-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.conversation-time {
+  font-size: 11px;
+  color: #909399;
+}
+
+.conversation-last-message {
+  font-size: 12px;
+  color: #909399;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #f0f2f5;
+}
+
+.empty-chat {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  background-color: #fff;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.header-user:hover .username {
+  color: #409eff;
+}
+
+.username {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.message-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.message-item.mine {
+  justify-content: flex-end;
+}
+
+.message-avatar {
+  flex-shrink: 0;
+}
+
+.message-content {
+  max-width: 60%;
+}
+
+.message-bubble {
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.message-item:not(.mine) .message-bubble {
+  background-color: #fff;
+  color: #303133;
+  border-bottom-left-radius: 4px;
+}
+
+.message-item.mine .message-bubble {
+  background-color: #409eff;
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.message-time {
+  font-size: 10px;
+  color: #909399;
+  margin-top: 2px;
+  text-align: center;
+}
+
+.chat-input {
+  padding: 10px 12px;
+  background-color: #fff;
+  border-top: 1px solid #e4e7ed;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.chat-input .el-input {
+  flex: 1;
+  --el-input-border-radius: 16px;
+}
+
+.chat-input :deep(.el-input__wrapper) {
+  border-radius: 16px;
+  height: 36px;
+}
+
+.send-button {
+  border-radius: 16px;
+  height: 36px;
+  padding: 0 16px;
+  font-size: 13px;
+}
+
+/* 通知列表样式 */
 .main-content {
   flex: 1;
   display: flex;
@@ -456,6 +907,49 @@ onMounted(() => {
     border-bottom: 3px solid #409eff;
   }
   
+  .chat-main {
+    flex-direction: column;
+  }
+  
+  .chat-sidebar {
+    width: 100%;
+    height: 180px;
+    border-right: none;
+    border-bottom: 1px solid #e4e7ed;
+  }
+  
+  .conversation-list {
+    display: flex;
+    overflow-x: auto;
+    padding: 0 8px;
+  }
+  
+  .conversation-item {
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 10px;
+    min-width: 70px;
+    border-bottom: none;
+  }
+  
+  .conversation-item .el-badge {
+    margin-right: 0;
+    margin-bottom: 4px;
+  }
+  
+  .conversation-info {
+    text-align: center;
+  }
+  
+  .conversation-header {
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  .conversation-last-message {
+    display: none;
+  }
+  
   .content-body {
     padding: 16px;
   }
@@ -466,6 +960,10 @@ onMounted(() => {
   
   .notification-avatar {
     display: none;
+  }
+  
+  .message-content {
+    max-width: 75%;
   }
 }
 </style>

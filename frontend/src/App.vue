@@ -40,14 +40,23 @@ const fetchUnreadCount = async () => {
   try {
     const token = localStorage.getItem('token')
     if (token) {
-      const response = await axios.get('http://localhost:8080/api/notification/unread-count', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      if (response.data.success) {
-        unreadCount.value = response.data.unreadCount
+      const [notificationRes, chatRes] = await Promise.all([
+        axios.get('http://localhost:8080/api/notification/unread-count', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        axios.get('http://localhost:8080/api/chat/unread-count', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ])
+      
+      let total = 0
+      if (notificationRes.data.success) {
+        total += notificationRes.data.unreadCount
       }
+      if (chatRes.data.success) {
+        total += chatRes.data.unreadCount
+      }
+      unreadCount.value = total
     }
   } catch (error) {
     console.error('获取未读消息数失败:', error)

@@ -36,6 +36,9 @@
             <el-button :type="isFollowing ? 'default' : 'primary'" @click="toggleFollow">
               {{ isFollowing ? '已关注' : '关注' }}
             </el-button>
+            <el-button v-if="isFollowing" @click="startChat" :icon="ChatDotRound">
+              发私信
+            </el-button>
           </div>
         </div>
       </div>
@@ -81,7 +84,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Loading, VideoPlay } from '@element-plus/icons-vue'
+import { Loading, VideoPlay, ChatDotRound } from '@element-plus/icons-vue'
+import axios from 'axios'
 
 const route = useRoute()
 const router = useRouter()
@@ -181,6 +185,38 @@ const toggleFollow = async () => {
 
 const goToVideo = (videoId: number) => {
   router.push(`/video?id=${videoId}`)
+}
+
+const startChat = async () => {
+  const userId = route.query.id
+  if (!userId) return
+  
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.warning('请先登录')
+      router.push('/login')
+      return
+    }
+    
+    const response = await axios.post(`http://localhost:8080/api/chat/conversation/${userId}`, {}, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    if (response.data.success) {
+      router.push({ path: '/notifications', query: { chat: response.data.conversationId } })
+    } else {
+      ElMessage.error(response.data.message || '创建会话失败')
+    }
+  } catch (error: any) {
+    if (error.response?.data?.message) {
+      ElMessage.error(error.response.data.message)
+    } else {
+      ElMessage.error('操作失败')
+    }
+  }
 }
 
 const formatViewCount = (count: number) => {
