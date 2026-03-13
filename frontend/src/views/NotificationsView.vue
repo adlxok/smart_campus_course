@@ -487,7 +487,7 @@ onMounted(async () => {
   display: flex;
   max-width: 1200px;
   margin: 0 auto;
-  min-height: calc(100vh - 144px);
+  height: calc(100vh - 144px);
   background-color: #f5f7fa;
   border-radius: 8px;
   overflow: hidden;
@@ -556,6 +556,7 @@ onMounted(async () => {
   flex: 1;
   display: flex;
   background-color: #f5f7fa;
+  overflow: hidden;
 }
 
 .chat-sidebar {
@@ -564,6 +565,7 @@ onMounted(async () => {
   border-right: 1px solid #e4e7ed;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .chat-sidebar-header {
@@ -645,6 +647,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   background-color: #f0f2f5;
+  overflow: hidden;
 }
 
 .empty-chat {
@@ -768,6 +771,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   background-color: #fff;
+  overflow: hidden;
 }
 
 .content-header {
