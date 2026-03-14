@@ -10,6 +10,7 @@ import jieba
 app = Flask(__name__)
 
 MODEL_PATH = r"d:\A_Graduation_Project\project\p2_0\lr_text_classification_model_optimized"
+VIOLATION_THRESHOLD = 0.9
 
 spark = None
 model = None
@@ -73,20 +74,21 @@ def predict():
         prediction = loaded_model.transform(df)
         result = prediction.select("prediction", "probability").collect()[0]
         
-        pred_label = int(result["prediction"])
         probability = result["probability"]
         violation_prob = float(probability[1])
         
-        label_name = "违规" if pred_label == 1 else "不违规"
+        is_violation = violation_prob >= VIOLATION_THRESHOLD
+        label_name = "违规" if is_violation else "不违规"
         
         return jsonify({
             'success': True,
             'data': {
                 'text': text,
                 'label': label_name,
-                'isViolation': pred_label == 1,
+                'isViolation': is_violation,
                 'violationProbability': round(violation_prob, 4),
-                'confidence': round(max(violation_prob, 1 - violation_prob), 4)
+                'confidence': round(max(violation_prob, 1 - violation_prob), 4),
+                'threshold': VIOLATION_THRESHOLD
             }
         })
         
@@ -136,16 +138,18 @@ def predict_batch():
         output = []
         for row in results:
             text = row["文本"]
-            pred_label = int(row["prediction"])
             probability = row["probability"]
             violation_prob = float(probability[1])
             
+            is_violation = violation_prob >= VIOLATION_THRESHOLD
+            
             output.append({
                 'text': text,
-                'label': "违规" if pred_label == 1 else "不违规",
-                'isViolation': pred_label == 1,
+                'label': "违规" if is_violation else "不违规",
+                'isViolation': is_violation,
                 'violationProbability': round(violation_prob, 4),
-                'confidence': round(max(violation_prob, 1 - violation_prob), 4)
+                'confidence': round(max(violation_prob, 1 - violation_prob), 4),
+                'threshold': VIOLATION_THRESHOLD
             })
         
         return jsonify({
@@ -177,10 +181,12 @@ def model_info():
             'modelType': 'Binary Classification',
             'labels': ['不违规', '违规'],
             'features': 'TF-IDF (10000 features) + jieba中文分词',
+            'violationThreshold': VIOLATION_THRESHOLD,
             'optimizations': [
                 '中文分词(jieba)',
                 '类别权重平衡',
-                'CountVectorizer特征提取'
+                'CountVectorizer特征提取',
+                f'阈值调整({VIOLATION_THRESHOLD})'
             ],
             'trainingMetrics': {
                 'auc': 1.0000,
