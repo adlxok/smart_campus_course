@@ -39,6 +39,7 @@ D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\c
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\Comment.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\mapper\CommentMapper.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\UserFollow.java
+D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\service\TextClassificationService.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\Conversation.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\Video.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\Notification.java

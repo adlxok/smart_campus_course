@@ -5,6 +5,7 @@ import com.example.backend.entity.Comment;
 import com.example.backend.entity.User;
 import com.example.backend.mapper.CommentMapper;
 import com.example.backend.mapper.UserMapper;
+import com.example.backend.service.TextClassificationService;
 import com.example.backend.utils.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +23,9 @@ public class CommentController {
     
     @Autowired
     private UserMapper userMapper;
+    
+    @Autowired
+    private TextClassificationService textClassificationService;
     
     @GetMapping("/list/{videoId}")
     public Map<String, Object> getComments(@PathVariable Long videoId) {
@@ -108,6 +112,22 @@ public class CommentController {
             if (content == null || content.trim().isEmpty()) {
                 response.put("success", false);
                 response.put("message", "评论内容不能为空");
+                return response;
+            }
+            
+            TextClassificationService.TextClassificationResult classificationResult = 
+                textClassificationService.classifyText(content);
+            
+            if (!classificationResult.isSuccess()) {
+                response.put("success", false);
+                response.put("message", "内容审核服务暂时不可用，请稍后重试");
+                return response;
+            }
+            
+            if (classificationResult.isViolation()) {
+                response.put("success", false);
+                response.put("message", "评论内容涉嫌违规，无法发布");
+                response.put("violationProbability", classificationResult.getViolationProbability());
                 return response;
             }
             
