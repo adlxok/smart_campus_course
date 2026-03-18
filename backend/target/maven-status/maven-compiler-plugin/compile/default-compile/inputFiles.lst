@@ -13,12 +13,14 @@ D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\c
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\mapper\UserMapper.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\service\NotificationService.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\PrivateMessage.java
+D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\service\CategoryService.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\NotificationController.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\UserFollow.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\Notification.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\PrivateMessageController.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\BilibiliVideo.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\VideoTag.java
+D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\CategoryController.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\kafka\NotificationConsumer.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\utils\JwtUtil.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\config\JwtFilter.java
