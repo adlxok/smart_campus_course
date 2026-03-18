@@ -2,7 +2,7 @@
   <div class="dashboard">
     <aside class="sidebar">
       <div class="logo">
-        <h2>B站管理系统</h2>
+        <h2>后台管理系统</h2>
       </div>
       <nav class="nav-menu">
         <div 

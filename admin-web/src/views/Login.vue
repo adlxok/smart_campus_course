@@ -1,7 +1,7 @@
 <template>
   <div class="login-container">
     <div class="login-box">
-      <h1 class="title">B站视频管理系统</h1>
+      <h1 class="title">后台管理系统</h1>
       <form @submit.prevent="handleLogin">
         <div class="form-group">
           <label>用户名</label>
