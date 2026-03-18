@@ -34,54 +34,35 @@ public class CrawlerController {
                 return response;
             }
 
-            String taskId = "task_" + System.currentTimeMillis();
-            CrawlerTask task = new CrawlerTask(taskId, url, maxVideos);
-            runningTasks.put(taskId, task);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("url", url);
+            requestBody.put("maxVideos", maxVideos);
+            
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+            
+            @SuppressWarnings("unchecked")
+            Map<String, Object> result = restTemplate.postForObject(
+                mlServiceUrl + "/api/crawler/start", 
+                request, 
+                Map.class
+            );
+            
+            if (result != null && Boolean.TRUE.equals(result.get("success"))) {
+                String taskId = (String) result.get("taskId");
+                
+                CrawlerTask task = new CrawlerTask(taskId, url, maxVideos);
+                runningTasks.put(taskId, task);
 
-            Thread crawlerThread = new Thread(() -> {
-                try {
-                    task.setStatus("running");
-                    task.setProgress("正在启动爬虫...");
-
-                    HttpHeaders headers = new HttpHeaders();
-                    headers.setContentType(MediaType.APPLICATION_JSON);
-                    
-                    Map<String, Object> requestBody = new HashMap<>();
-                    requestBody.put("url", url);
-                    requestBody.put("maxVideos", maxVideos);
-                    
-                    HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-                    
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> result = restTemplate.postForObject(
-                        mlServiceUrl + "/api/crawler/start", 
-                        request, 
-                        Map.class
-                    );
-                    
-                    if (result != null && Boolean.TRUE.equals(result.get("success"))) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> data = (Map<String, Object>) result.get("data");
-                        task.setStatus("completed");
-                        task.setProgress("爬取完成");
-                        task.setOutput(String.format("成功: %s 条, 失败: %s 条", 
-                            data.get("successCount"), data.get("failCount")));
-                    } else {
-                        task.setStatus("failed");
-                        task.setOutput("爬虫执行失败: " + (result != null ? result.get("error") : "未知错误"));
-                    }
-
-                } catch (Exception e) {
-                    task.setStatus("failed");
-                    task.setOutput("爬虫执行失败: " + e.getMessage());
-                }
-            });
-
-            crawlerThread.start();
-
-            response.put("success", true);
-            response.put("taskId", taskId);
-            response.put("message", "爬虫任务已启动");
+                response.put("success", true);
+                response.put("taskId", taskId);
+                response.put("message", "爬虫任务已启动");
+            } else {
+                response.put("success", false);
+                response.put("message", result != null ? result.get("error") : "启动失败");
+            }
 
         } catch (Exception e) {
             response.put("success", false);
@@ -93,40 +74,109 @@ public class CrawlerController {
     @GetMapping("/status/{taskId}")
     public Map<String, Object> getTaskStatus(@PathVariable String taskId) {
         Map<String, Object> response = new HashMap<>();
-        CrawlerTask task = runningTasks.get(taskId);
-
-        if (task == null) {
-            response.put("success", false);
-            response.put("message", "任务不存在");
-            return response;
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> result = restTemplate.getForObject(
+                mlServiceUrl + "/api/crawler/status/" + taskId, 
+                Map.class
+            );
+            
+            if (result != null && Boolean.TRUE.equals(result.get("success"))) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> data = (Map<String, Object>) result.get("data");
+                response.put("success", true);
+                response.put("status", data.get("status"));
+                response.put("progress", data.get("progress"));
+                response.put("logs", String.join("\n", (Iterable<String>) data.get("logs")));
+                response.put("result", data.get("result"));
+            } else {
+                response.put("success", false);
+                response.put("message", result != null ? result.get("error") : "获取状态失败");
+            }
+        } catch (Exception e) {
+            CrawlerTask localTask = runningTasks.get(taskId);
+            if (localTask != null) {
+                response.put("success", true);
+                response.put("status", localTask.getStatus());
+                response.put("progress", localTask.getProgress());
+                response.put("logs", localTask.getLogs());
+                response.put("output", localTask.getOutput());
+            } else {
+                response.put("success", false);
+                response.put("message", "任务不存在");
+            }
         }
+        return response;
+    }
 
-        response.put("success", true);
-        response.put("status", task.getStatus());
-        response.put("progress", task.getProgress());
-        response.put("logs", task.getLogs());
-        response.put("output", task.getOutput());
+    @GetMapping("/logs/{taskId}")
+    public Map<String, Object> getTaskLogs(@PathVariable String taskId, @RequestParam(defaultValue = "0") int since) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> result = restTemplate.getForObject(
+                mlServiceUrl + "/api/crawler/logs/" + taskId + "?since=" + since, 
+                Map.class
+            );
+            
+            if (result != null && Boolean.TRUE.equals(result.get("success"))) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> data = (Map<String, Object>) result.get("data");
+                response.put("success", true);
+                response.put("logs", data.get("logs"));
+                response.put("nextIndex", data.get("nextIndex"));
+            } else {
+                response.put("success", false);
+                response.put("message", result != null ? result.get("error") : "获取日志失败");
+            }
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "获取日志失败: " + e.getMessage());
+        }
         return response;
     }
 
     @GetMapping("/tasks")
     public Map<String, Object> getAllTasks() {
         Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", runningTasks.values());
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> result = restTemplate.getForObject(
+                mlServiceUrl + "/api/crawler/tasks", 
+                Map.class
+            );
+            
+            if (result != null && Boolean.TRUE.equals(result.get("success"))) {
+                response.put("success", true);
+                response.put("data", result.get("data"));
+            } else {
+                response.put("success", true);
+                response.put("data", runningTasks.values());
+            }
+        } catch (Exception e) {
+            response.put("success", true);
+            response.put("data", runningTasks.values());
+        }
         return response;
     }
 
     @DeleteMapping("/task/{taskId}")
     public Map<String, Object> deleteTask(@PathVariable String taskId) {
         Map<String, Object> response = new HashMap<>();
-        CrawlerTask removed = runningTasks.remove(taskId);
-        if (removed != null) {
+        try {
+            restTemplate.delete(mlServiceUrl + "/api/crawler/delete/" + taskId);
+            runningTasks.remove(taskId);
             response.put("success", true);
             response.put("message", "任务已删除");
-        } else {
-            response.put("success", false);
-            response.put("message", "任务不存在");
+        } catch (Exception e) {
+            CrawlerTask removed = runningTasks.remove(taskId);
+            if (removed != null) {
+                response.put("success", true);
+                response.put("message", "任务已删除");
+            } else {
+                response.put("success", false);
+                response.put("message", "任务不存在");
+            }
         }
         return response;
     }

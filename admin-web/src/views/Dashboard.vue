@@ -277,6 +277,7 @@
                 <el-button size="small" @click="clearLogs">清空日志</el-button>
               </div>
               <el-input
+                ref="logsTextarea"
                 type="textarea"
                 v-model="crawlerLogs"
                 :rows="15"
@@ -363,7 +364,7 @@
 </template>
 
 <script>
-import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
+import { ref, onMounted, computed, watch, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElNotification } from 'element-plus'
 import api from '../utils/api'
@@ -382,6 +383,7 @@ export default {
     const searchKeyword = ref('')
     const showVideoModal = ref(false)
     const selectedVideo = ref(null)
+    const logsTextarea = ref(null)
 
     const categories = ref([])
     const categoryPage = ref(1)
@@ -403,6 +405,7 @@ export default {
     const crawlerTask = ref(null)
     const crawlerLogs = ref('')
     let statusCheckInterval = null
+    let lastLogIndex = 0
 
     const menuTitle = computed(() => {
       const titles = {
@@ -643,6 +646,7 @@ export default {
 
       crawlerLoading.value = true
       crawlerLogs.value = ''
+      lastLogIndex = 0
 
       try {
         const response = await api.post('/admin/crawler/start', {
@@ -660,7 +664,7 @@ export default {
           
           ElMessage.success('爬虫任务已启动')
           
-          statusCheckInterval = setInterval(checkCrawlerStatus, 2000)
+          statusCheckInterval = setInterval(checkCrawlerStatus, 1000)
         } else {
           ElMessage.error(response.data.message)
           crawlerLoading.value = false
@@ -676,13 +680,16 @@ export default {
       if (!crawlerTask.value) return
 
       try {
-        const response = await api.get(`/admin/crawler/status/${crawlerTask.value.taskId}`)
-        if (response.data.success) {
-          crawlerTask.value.status = response.data.status
-          crawlerTask.value.progress = response.data.progress
-          crawlerLogs.value = response.data.logs || ''
+        const [statusResponse, logsResponse] = await Promise.all([
+          api.get(`/admin/crawler/status/${crawlerTask.value.taskId}`),
+          api.get(`/admin/crawler/logs/${crawlerTask.value.taskId}?since=${lastLogIndex}`)
+        ])
 
-          if (response.data.status === 'completed') {
+        if (statusResponse.data.success) {
+          crawlerTask.value.status = statusResponse.data.status
+          crawlerTask.value.progress = statusResponse.data.progress
+
+          if (statusResponse.data.status === 'completed') {
             clearInterval(statusCheckInterval)
             crawlerLoading.value = false
             ElNotification({
@@ -692,15 +699,32 @@ export default {
             })
             fetchStats()
             fetchVideos()
-          } else if (response.data.status === 'failed') {
+          } else if (statusResponse.data.status === 'failed') {
             clearInterval(statusCheckInterval)
             crawlerLoading.value = false
             ElNotification({
               title: '爬取失败',
-              message: response.data.output || '爬取过程中发生错误',
+              message: statusResponse.data.output || '爬取过程中发生错误',
               type: 'error'
             })
           }
+        }
+
+        if (logsResponse.data.success && logsResponse.data.logs && logsResponse.data.logs.length > 0) {
+          const newLogs = logsResponse.data.logs.join('\n')
+          if (crawlerLogs.value) {
+            crawlerLogs.value += '\n' + newLogs
+          } else {
+            crawlerLogs.value = newLogs
+          }
+          lastLogIndex = logsResponse.data.nextIndex
+          
+          nextTick(() => {
+            const textarea = document.querySelector('.logs-textarea textarea')
+            if (textarea) {
+              textarea.scrollTop = textarea.scrollHeight
+            }
+          })
         }
       } catch (error) {
         console.error('获取爬虫状态失败:', error)
@@ -718,6 +742,7 @@ export default {
 
     const clearLogs = () => {
       crawlerLogs.value = ''
+      lastLogIndex = 0
     }
 
     const logout = () => {
@@ -756,6 +781,7 @@ export default {
       searchKeyword,
       showVideoModal,
       selectedVideo,
+      logsTextarea,
       categories,
       categoryPage,
       categoryTotalPages,

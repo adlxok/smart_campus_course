@@ -11,6 +11,9 @@ import json
 import re
 import pymysql
 import requests
+import threading
+import uuid
+from datetime import datetime
 from playwright.async_api import async_playwright
 
 app = Flask(__name__)
@@ -20,6 +23,8 @@ VIOLATION_THRESHOLD = 0.9
 
 spark = None
 model = None
+
+crawler_tasks = {}
 
 db_config = {
     "host": "localhost",
@@ -58,7 +63,36 @@ def init_spark():
     
     return spark, model
 
-def save_to_mysql(video_info):
+class CrawlerTask:
+    def __init__(self, task_id, url, max_videos):
+        self.task_id = task_id
+        self.url = url
+        self.max_videos = max_videos
+        self.status = "pending"
+        self.progress = "等待执行..."
+        self.logs = []
+        self.result = None
+        self.created_at = datetime.now()
+    
+    def add_log(self, message):
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.logs.append(f"[{timestamp}] {message}")
+        if len(self.logs) > 1000:
+            self.logs = self.logs[-500:]
+    
+    def to_dict(self):
+        return {
+            'taskId': self.task_id,
+            'url': self.url,
+            'maxVideos': self.max_videos,
+            'status': self.status,
+            'progress': self.progress,
+            'logs': self.logs,
+            'result': self.result,
+            'createdAt': self.created_at.isoformat()
+        }
+
+def save_to_mysql(video_info, task):
     try:
         conn = pymysql.connect(**db_config)
         cursor = conn.cursor()
@@ -87,7 +121,7 @@ def save_to_mysql(video_info):
         conn.close()
         return True
     except Exception as e:
-        print(f"  [MySQL] 保存失败: {e}")
+        task.add_log(f"[MySQL] 保存失败: {e}")
         return False
 
 def parse_video_data(html):
@@ -171,15 +205,15 @@ def get_valid_categories():
         print(f"[获取分类失败] {e}")
         return set()
 
-def clean_video_data():
-    print("[4] 开始清洗数据...")
+def clean_video_data(task):
+    task.add_log("[4] 开始清洗数据...")
     try:
         valid_categories = get_valid_categories()
         if not valid_categories:
-            print("  警告: 未获取到有效分类，跳过数据清洗")
+            task.add_log("警告: 未获取到有效分类，跳过数据清洗")
             return 0
         
-        print(f"  有效分类: {valid_categories}")
+        task.add_log(f"有效分类: {', '.join(valid_categories)}")
         
         conn = pymysql.connect(**db_config)
         cursor = conn.cursor()
@@ -197,109 +231,129 @@ def clean_video_data():
         cursor.close()
         conn.close()
         
-        print(f"  数据清洗完成，删除了 {deleted_count} 条无效分类的视频")
+        task.add_log(f"数据清洗完成，删除了 {deleted_count} 条无效分类的视频")
         return deleted_count
     except Exception as e:
-        print(f"[数据清洗失败] {e}")
+        task.add_log(f"[数据清洗失败] {e}")
         return 0
 
-async def crawl_bilibili(url, max_videos):
-    print("=" * 60)
-    print(f"Playwright 自动化爬取 B站 (目标: {max_videos}条)")
-    print("=" * 60)
+async def crawl_bilibili_async(task):
+    task.add_log("=" * 50)
+    task.add_log(f"Playwright 自动化爬取 B站 (目标: {task.max_videos}条)")
+    task.add_log("=" * 50)
     
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context()
-        
-        await context.add_cookies([
-            {"name": "SESSDATA", "value": "ed58402d%2C1789215749%2C92fed%2A32CjDndERecaqXHhtLNa5F6EzUKBXXVM1L25WGHmpKHEaghtKmqGIUrMYJP6y1BQhEFc4SVlhmTDZLcVNHbWN1dWNsUTRhM2RPTGw2THNySFEyVnhSYU9zb0lKemtGZEJsNHdvZDJOM1lXNWpBekdid2pFQzFLeEEwUm1tdC1UU1dDRGg3NXNmcXRBIIEC", "domain": ".bilibili.com", "path": "/"}
-        ])
-        
-        page = await context.new_page()
-        
-        print(f"[1] 打开B站页面: {url}")
-        await page.goto(url, wait_until="networkidle")
-        await page.wait_for_timeout(2000)
-        
-        print("[2] 滚动页面获取视频链接...")
-        video_links = set()
-        scroll_count = 0
-        max_scrolls = 100
-        no_new_links_count = 0
-        
-        while len(video_links) < max_videos and scroll_count < max_scrolls:
-            links = await page.eval_on_selector_all('a[href*="/video/BV"]', 'els => els.map(el => el.href)')
-            prev_count = len(video_links)
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            context = await browser.new_context()
             
-            for link in links:
-                video_links.add(link)
+            await context.add_cookies([
+                {"name": "SESSDATA", "value": "ed58402d%2C1789215749%2C92fed%2A32CjDndERecaqXHhtLNa5F6EzUKBXXVM1L25WGHmpKHEaghtKmqGIUrMYJP6y1BQhEFc4SVlhmTDZLcVNHbWN1dWNsUTRhM2RPTGw2THNySFEyVnhSYU9zb0lKemtGZEJsNHdvZDJOM1lXNWpBekdid2pFQzFLeEEwUm1tdC1UU1dDRGg3NXNmcXRBIIEC", "domain": ".bilibili.com", "path": "/"}
+            ])
             
-            new_count = len(video_links) - prev_count
+            page = await context.new_page()
             
-            if new_count == 0:
-                no_new_links_count += 1
-            else:
-                no_new_links_count = 0
+            task.add_log(f"[1] 打开B站页面: {task.url}")
+            task.progress = "正在打开页面..."
+            await page.goto(task.url, wait_until="networkidle")
+            await page.wait_for_timeout(2000)
             
-            if no_new_links_count >= 5:
-                print(f"连续5次滚动无新链接，停止滚动")
-                break
+            task.add_log("[2] 滚动页面获取视频链接...")
+            task.progress = "正在获取视频链接..."
+            video_links = set()
+            scroll_count = 0
+            max_scrolls = 100
+            no_new_links_count = 0
             
-            scroll_count += 1
-            print(f"滚动 {scroll_count} 次，已获取 {len(video_links)} 个链接")
-            
-            await page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
-            await page.wait_for_timeout(1000)
-        
-        unique_links = list(video_links)[:max_videos]
-        print(f"[3] 共获取 {len(unique_links)} 个视频链接，准备爬取")
-        
-        success_count = 0
-        fail_count = 0
-        
-        for i, video_url in enumerate(unique_links, 1):
-            print(f"[{i}/{len(unique_links)}] 爬取: {video_url}")
-            
-            try:
-                html = get_html_by_requests(video_url)
-                video_info = parse_video_data(html)
+            while len(video_links) < task.max_videos and scroll_count < max_scrolls:
+                links = await page.eval_on_selector_all('a[href*="/video/BV"]', 'els => els.map(el => el.href)')
+                prev_count = len(video_links)
                 
-                if video_info.get('bvid'):
-                    print(f"  标题: {video_info['title'][:40]}...")
-                    print(f"  BV号: {video_info['bvid']}")
-                    print(f"  播放量: {video_info['view']:,}")
-                    
-                    if save_to_mysql(video_info):
-                        success_count += 1
-                    else:
-                        fail_count += 1
+                for link in links:
+                    video_links.add(link)
+                
+                new_count = len(video_links) - prev_count
+                
+                if new_count == 0:
+                    no_new_links_count += 1
                 else:
-                    print(f"  跳过: 无法解析视频数据")
-                    fail_count += 1
-                    
-            except Exception as e:
-                print(f"  错误: {e}")
-                fail_count += 1
+                    no_new_links_count = 0
+                
+                if no_new_links_count >= 5:
+                    task.add_log("连续5次滚动无新链接，停止滚动")
+                    break
+                
+                scroll_count += 1
+                task.add_log(f"滚动 {scroll_count} 次，已获取 {len(video_links)} 个链接")
+                task.progress = f"已获取 {len(video_links)} 个链接"
+                
+                await page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
+                await page.wait_for_timeout(1000)
             
-            if i % 50 == 0:
-                print(f"[进度] 已爬取 {success_count} 条，失败 {fail_count} 条")
-        
-        await browser.close()
-        
-        print("=" * 60)
-        print(f"爬取完成! 成功: {success_count} 条, 失败: {fail_count} 条")
-        print("=" * 60)
-        
-        deleted_count = clean_video_data()
-        
-        return {
-            'success': True,
-            'total': len(unique_links),
-            'successCount': success_count,
-            'failCount': fail_count,
-            'deletedCount': deleted_count
+            unique_links = list(video_links)[:task.max_videos]
+            task.add_log(f"[3] 共获取 {len(unique_links)} 个视频链接，准备爬取")
+            
+            success_count = 0
+            fail_count = 0
+            
+            for i, video_url in enumerate(unique_links, 1):
+                task.add_log(f"[{i}/{len(unique_links)}] 爬取: {video_url}")
+                task.progress = f"正在爬取 {i}/{len(unique_links)}"
+                
+                try:
+                    html = get_html_by_requests(video_url)
+                    video_info = parse_video_data(html)
+                    
+                    if video_info.get('bvid'):
+                        title_short = video_info['title'][:40] + "..." if len(video_info['title']) > 40 else video_info['title']
+                        task.add_log(f"标题: {title_short}")
+                        task.add_log(f"BV号: {video_info['bvid']}")
+                        task.add_log(f"播放量: {video_info['view']:,}")
+                        
+                        if save_to_mysql(video_info, task):
+                            success_count += 1
+                        else:
+                            fail_count += 1
+                    else:
+                        task.add_log("跳过: 无法解析视频数据")
+                        fail_count += 1
+                        
+                except Exception as e:
+                    task.add_log(f"错误: {e}")
+                    fail_count += 1
+                
+                if i % 50 == 0:
+                    task.add_log(f"[进度] 已爬取 {success_count} 条，失败 {fail_count} 条")
+            
+            await browser.close()
+            
+            task.add_log("=" * 50)
+            task.add_log(f"爬取完成! 成功: {success_count} 条, 失败: {fail_count} 条")
+            task.add_log("=" * 50)
+            
+            deleted_count = clean_video_data(task)
+            
+            task.status = "completed"
+            task.progress = "爬取完成"
+            task.result = {
+                'success': True,
+                'total': len(unique_links),
+                'successCount': success_count,
+                'failCount': fail_count,
+                'deletedCount': deleted_count
+            }
+            
+    except Exception as e:
+        task.status = "failed"
+        task.progress = f"爬取失败: {str(e)}"
+        task.add_log(f"[错误] {str(e)}")
+        task.result = {
+            'success': False,
+            'error': str(e)
         }
+
+def run_crawler_task(task):
+    asyncio.run(crawl_bilibili_async(task))
 
 @app.route('/api/predict', methods=['POST'])
 def predict():
@@ -447,11 +501,18 @@ def start_crawler():
                 'error': 'URL不能为空'
             }), 400
         
-        result = asyncio.run(crawl_bilibili(url, max_videos))
+        task_id = str(uuid.uuid4())
+        task = CrawlerTask(task_id, url, max_videos)
+        crawler_tasks[task_id] = task
+        
+        thread = threading.Thread(target=run_crawler_task, args=(task,))
+        thread.daemon = True
+        thread.start()
         
         return jsonify({
             'success': True,
-            'data': result
+            'taskId': task_id,
+            'message': '爬虫任务已启动'
         })
         
     except Exception as e:
@@ -459,6 +520,67 @@ def start_crawler():
             'success': False,
             'error': str(e)
         }), 500
+
+@app.route('/api/crawler/status/<task_id>', methods=['GET'])
+def get_crawler_status(task_id):
+    task = crawler_tasks.get(task_id)
+    if not task:
+        return jsonify({
+            'success': False,
+            'error': '任务不存在'
+        }), 404
+    
+    return jsonify({
+        'success': True,
+        'data': task.to_dict()
+    })
+
+@app.route('/api/crawler/logs/<task_id>', methods=['GET'])
+def get_crawler_logs(task_id):
+    task = crawler_tasks.get(task_id)
+    if not task:
+        return jsonify({
+            'success': False,
+            'error': '任务不存在'
+        }), 404
+    
+    since_index = request.args.get('since', 0, type=int)
+    logs = task.logs[since_index:]
+    next_index = since_index + len(logs)
+    
+    return jsonify({
+        'success': True,
+        'data': {
+            'taskId': task_id,
+            'status': task.status,
+            'progress': task.progress,
+            'logs': logs,
+            'totalLogs': len(task.logs),
+            'nextIndex': next_index,
+            'result': task.result
+        }
+    })
+
+@app.route('/api/crawler/tasks', methods=['GET'])
+def get_all_crawler_tasks():
+    tasks = [task.to_dict() for task in crawler_tasks.values()]
+    return jsonify({
+        'success': True,
+        'data': tasks
+    })
+
+@app.route('/api/crawler/delete/<task_id>', methods=['DELETE'])
+def delete_crawler_task(task_id):
+    if task_id in crawler_tasks:
+        del crawler_tasks[task_id]
+        return jsonify({
+            'success': True,
+            'message': '任务已删除'
+        })
+    return jsonify({
+        'success': False,
+        'error': '任务不存在'
+    }), 404
 
 @app.route('/api/health', methods=['GET'])
 def health():
@@ -485,4 +607,4 @@ if __name__ == '__main__':
     print("正在初始化Spark和加载优化版模型...")
     init_spark()
     print("服务启动中...")
-    app.run(host='0.0.0.0', port=5001, debug=False)
+    app.run(host='0.0.0.0', port=5001, debug=False, threaded=True)
