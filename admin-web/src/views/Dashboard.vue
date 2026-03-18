@@ -31,6 +31,14 @@
         </div>
         <div 
           class="nav-item" 
+          :class="{ active: currentMenu === 'crawler' }"
+          @click="currentMenu = 'crawler'"
+        >
+          <span class="icon">🕷️</span>
+          <span>视频爬取</span>
+        </div>
+        <div 
+          class="nav-item" 
           :class="{ active: currentMenu === 'users' }"
           @click="currentMenu = 'users'"
         >
@@ -200,6 +208,98 @@
           </div>
         </div>
 
+        <div v-if="currentMenu === 'crawler'" class="crawler-section">
+          <el-card class="crawler-card">
+            <template #header>
+              <div class="card-header">
+                <span>🕷️ B站视频爬取</span>
+              </div>
+            </template>
+            
+            <el-form :model="crawlerForm" label-width="100px">
+              <el-form-item label="目标URL">
+                <el-input 
+                  v-model="crawlerForm.url" 
+                  placeholder="请输入B站页面URL，如: https://www.bilibili.com/c/music/"
+                  clearable
+                >
+                  <template #prepend>https://</template>
+                </el-input>
+              </el-form-item>
+              
+              <el-form-item label="爬取数量">
+                <el-input-number 
+                  v-model="crawlerForm.maxVideos" 
+                  :min="1" 
+                  :max="1000" 
+                  :step="10"
+                />
+                <span class="form-tip">最大支持1000条</span>
+              </el-form-item>
+
+              <el-form-item>
+                <el-button 
+                  type="primary" 
+                  @click="startCrawler"
+                  :loading="crawlerLoading"
+                  :disabled="!crawlerForm.url"
+                >
+                  {{ crawlerLoading ? '爬取中...' : '开始爬取' }}
+                </el-button>
+                <el-button 
+                  v-if="crawlerLoading" 
+                  type="danger" 
+                  @click="stopCrawler"
+                >
+                  停止爬取
+                </el-button>
+              </el-form-item>
+            </el-form>
+
+            <el-divider />
+
+            <div v-if="crawlerTask" class="crawler-status">
+              <el-descriptions :column="2" border>
+                <el-descriptions-item label="任务ID">{{ crawlerTask.taskId }}</el-descriptions-item>
+                <el-descriptions-item label="状态">
+                  <el-tag :type="getTaskStatusType(crawlerTask.status)">
+                    {{ getTaskStatusText(crawlerTask.status) }}
+                  </el-tag>
+                </el-descriptions-item>
+                <el-descriptions-item label="目标URL" :span="2">{{ crawlerTask.url }}</el-descriptions-item>
+                <el-descriptions-item label="当前进度" :span="2">{{ crawlerTask.progress }}</el-descriptions-item>
+              </el-descriptions>
+            </div>
+
+            <div v-if="crawlerLogs" class="crawler-logs">
+              <div class="logs-header">
+                <span>执行日志</span>
+                <el-button size="small" @click="clearLogs">清空日志</el-button>
+              </div>
+              <el-input
+                type="textarea"
+                v-model="crawlerLogs"
+                :rows="15"
+                readonly
+                class="logs-textarea"
+              />
+            </div>
+          </el-card>
+
+          <el-card class="crawler-tips">
+            <template #header>
+              <span>📝 使用说明</span>
+            </template>
+            <ul class="tips-list">
+              <li>支持爬取B站任意分区页面，如音乐区、动画区等</li>
+              <li>爬虫会自动滚动页面获取视频链接</li>
+              <li>数据会自动保存到数据库中</li>
+              <li>爬取过程中请勿关闭浏览器窗口</li>
+              <li>建议每次爬取数量不超过500条</li>
+            </ul>
+          </el-card>
+        </div>
+
         <div v-if="currentMenu === 'users'">
           <div class="empty-state">
             <span class="empty-icon">👥</span>
@@ -263,8 +363,9 @@
 </template>
 
 <script>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage, ElNotification } from 'element-plus'
 import api from '../utils/api'
 
 export default {
@@ -294,11 +395,21 @@ export default {
       sort: 0
     })
 
+    const crawlerForm = ref({
+      url: 'www.bilibili.com/c/music/',
+      maxVideos: 100
+    })
+    const crawlerLoading = ref(false)
+    const crawlerTask = ref(null)
+    const crawlerLogs = ref('')
+    let statusCheckInterval = null
+
     const menuTitle = computed(() => {
       const titles = {
         dashboard: '数据概览',
         videos: '视频管理',
         categories: '分类管理',
+        crawler: '视频爬取',
         users: '用户管理',
         settings: '系统设置'
       }
@@ -325,6 +436,26 @@ export default {
     const getCategoryPercent = (count) => {
       if (!stats.value.videoCount) return 0
       return (count / stats.value.videoCount * 100).toFixed(1)
+    }
+
+    const getTaskStatusType = (status) => {
+      const types = {
+        pending: 'info',
+        running: 'warning',
+        completed: 'success',
+        failed: 'danger'
+      }
+      return types[status] || 'info'
+    }
+
+    const getTaskStatusText = (status) => {
+      const texts = {
+        pending: '等待中',
+        running: '运行中',
+        completed: '已完成',
+        failed: '失败'
+      }
+      return texts[status] || status
     }
 
     const fetchVideos = async () => {
@@ -499,6 +630,96 @@ export default {
       }
     }
 
+    const startCrawler = async () => {
+      if (!crawlerForm.value.url) {
+        ElMessage.warning('请输入目标URL')
+        return
+      }
+
+      let url = crawlerForm.value.url
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url
+      }
+
+      crawlerLoading.value = true
+      crawlerLogs.value = ''
+
+      try {
+        const response = await api.post('/admin/crawler/start', {
+          url: url,
+          maxVideos: crawlerForm.value.maxVideos
+        })
+
+        if (response.data.success) {
+          crawlerTask.value = {
+            taskId: response.data.taskId,
+            url: url,
+            status: 'pending',
+            progress: '正在启动...'
+          }
+          
+          ElMessage.success('爬虫任务已启动')
+          
+          statusCheckInterval = setInterval(checkCrawlerStatus, 2000)
+        } else {
+          ElMessage.error(response.data.message)
+          crawlerLoading.value = false
+        }
+      } catch (error) {
+        console.error('启动爬虫失败:', error)
+        ElMessage.error('启动爬虫失败')
+        crawlerLoading.value = false
+      }
+    }
+
+    const checkCrawlerStatus = async () => {
+      if (!crawlerTask.value) return
+
+      try {
+        const response = await api.get(`/admin/crawler/status/${crawlerTask.value.taskId}`)
+        if (response.data.success) {
+          crawlerTask.value.status = response.data.status
+          crawlerTask.value.progress = response.data.progress
+          crawlerLogs.value = response.data.logs || ''
+
+          if (response.data.status === 'completed') {
+            clearInterval(statusCheckInterval)
+            crawlerLoading.value = false
+            ElNotification({
+              title: '爬取完成',
+              message: '视频数据爬取已完成',
+              type: 'success'
+            })
+            fetchStats()
+            fetchVideos()
+          } else if (response.data.status === 'failed') {
+            clearInterval(statusCheckInterval)
+            crawlerLoading.value = false
+            ElNotification({
+              title: '爬取失败',
+              message: response.data.output || '爬取过程中发生错误',
+              type: 'error'
+            })
+          }
+        }
+      } catch (error) {
+        console.error('获取爬虫状态失败:', error)
+      }
+    }
+
+    const stopCrawler = () => {
+      if (statusCheckInterval) {
+        clearInterval(statusCheckInterval)
+      }
+      crawlerLoading.value = false
+      crawlerTask.value = null
+      ElMessage.info('已停止监控爬虫状态')
+    }
+
+    const clearLogs = () => {
+      crawlerLogs.value = ''
+    }
+
     const logout = () => {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
@@ -518,6 +739,12 @@ export default {
       fetchStats()
     })
 
+    onUnmounted(() => {
+      if (statusCheckInterval) {
+        clearInterval(statusCheckInterval)
+      }
+    })
+
     return {
       username,
       currentMenu,
@@ -534,9 +761,15 @@ export default {
       categoryTotalPages,
       showCategoryModal,
       categoryForm,
+      crawlerForm,
+      crawlerLoading,
+      crawlerTask,
+      crawlerLogs,
       formatNumber,
       formatDate,
       getCategoryPercent,
+      getTaskStatusType,
+      getTaskStatusText,
       fetchVideos,
       searchVideos,
       prevPage,
@@ -548,6 +781,9 @@ export default {
       openCategoryModal,
       saveCategory,
       deleteCategory,
+      startCrawler,
+      stopCrawler,
+      clearLogs,
       logout
     }
   }
@@ -1031,5 +1267,68 @@ th {
   border: none;
   border-radius: 6px;
   cursor: pointer;
+}
+
+.crawler-section {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+}
+
+.crawler-card {
+  min-height: 500px;
+}
+
+.card-header {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.form-tip {
+  margin-left: 12px;
+  color: #999;
+  font-size: 12px;
+}
+
+.crawler-status {
+  margin-top: 16px;
+}
+
+.crawler-logs {
+  margin-top: 16px;
+}
+
+.logs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.logs-textarea {
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 12px;
+}
+
+.logs-textarea :deep(textarea) {
+  background: #1e1e1e;
+  color: #d4d4d4;
+}
+
+.crawler-tips {
+  height: fit-content;
+}
+
+.tips-list {
+  margin: 0;
+  padding-left: 20px;
+  color: #666;
+  font-size: 14px;
+  line-height: 2;
+}
+
+.tips-list li {
+  margin-bottom: 8px;
 }
 </style>

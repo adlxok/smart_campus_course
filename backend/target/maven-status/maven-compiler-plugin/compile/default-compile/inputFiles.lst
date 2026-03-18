@@ -15,6 +15,7 @@ D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\s
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\PrivateMessage.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\service\CategoryService.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\NotificationController.java
+D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\CrawlerController.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\UserFollow.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\Notification.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\PrivateMessageController.java
