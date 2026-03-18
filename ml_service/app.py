@@ -158,6 +158,51 @@ def get_html_by_requests(url):
     response = session.get(url=url, headers=headers, timeout=30)
     return response.text
 
+def get_valid_categories():
+    try:
+        conn = pymysql.connect(**db_config)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM category")
+        categories = [row[0] for row in cursor.fetchall()]
+        cursor.close()
+        conn.close()
+        return set(categories)
+    except Exception as e:
+        print(f"[获取分类失败] {e}")
+        return set()
+
+def clean_video_data():
+    print("[4] 开始清洗数据...")
+    try:
+        valid_categories = get_valid_categories()
+        if not valid_categories:
+            print("  警告: 未获取到有效分类，跳过数据清洗")
+            return 0
+        
+        print(f"  有效分类: {valid_categories}")
+        
+        conn = pymysql.connect(**db_config)
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT bvid, category FROM bilibili_video")
+        all_videos = cursor.fetchall()
+        
+        deleted_count = 0
+        for bvid, category in all_videos:
+            if category not in valid_categories:
+                cursor.execute("DELETE FROM bilibili_video WHERE bvid = %s", (bvid,))
+                deleted_count += 1
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        print(f"  数据清洗完成，删除了 {deleted_count} 条无效分类的视频")
+        return deleted_count
+    except Exception as e:
+        print(f"[数据清洗失败] {e}")
+        return 0
+
 async def crawl_bilibili(url, max_videos):
     print("=" * 60)
     print(f"Playwright 自动化爬取 B站 (目标: {max_videos}条)")
@@ -246,11 +291,14 @@ async def crawl_bilibili(url, max_videos):
         print(f"爬取完成! 成功: {success_count} 条, 失败: {fail_count} 条")
         print("=" * 60)
         
+        deleted_count = clean_video_data()
+        
         return {
             'success': True,
             'total': len(unique_links),
             'successCount': success_count,
-            'failCount': fail_count
+            'failCount': fail_count,
+            'deletedCount': deleted_count
         }
 
 @app.route('/api/predict', methods=['POST'])
