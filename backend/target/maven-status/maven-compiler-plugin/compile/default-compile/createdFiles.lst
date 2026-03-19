@@ -17,6 +17,7 @@ com\example\backend\controller\CommentController.class
 com\example\backend\controller\NotificationController.class
 com\example\backend\dto\NotificationMessage.class
 com\example\backend\service\TextClassificationService$TextClassificationResult.class
+com\example\backend\controller\ImportController.class
 com\example\backend\service\CategoryService.class
 com\example\backend\controller\CategoryController.class
 com\example\backend\BackendApplication.class
@@ -39,6 +40,7 @@ com\example\backend\entity\Conversation.class
 com\example\backend\config\JwtFilter.class
 com\example\backend\entity\Tag.class
 com\example\backend\mapper\BilibiliVideoMapper.class
+com\example\backend\controller\BilibiliVideoController.class
 com\example\backend\controller\CrawlerController$CrawlerTask.class
 com\example\backend\controller\UserFollowController.class
 com\example\backend\service\PrivateMessageService.class

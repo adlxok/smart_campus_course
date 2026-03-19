@@ -39,6 +39,14 @@
         </div>
         <div 
           class="nav-item" 
+          :class="{ active: currentMenu === 'import' }"
+          @click="currentMenu = 'import'"
+        >
+          <span class="icon">📥</span>
+          <span>视频导入</span>
+        </div>
+        <div 
+          class="nav-item" 
           :class="{ active: currentMenu === 'users' }"
           @click="currentMenu = 'users'"
         >
@@ -301,6 +309,162 @@
           </el-card>
         </div>
 
+        <div v-if="currentMenu === 'import'" class="import-section">
+          <el-card class="import-card">
+            <template #header>
+              <div class="card-header">
+                <span>📥 视频导入</span>
+              </div>
+            </template>
+            
+            <div class="import-filters">
+              <div class="filter-row">
+                <span class="filter-label">分类筛选:</span>
+                <el-select v-model="importCategory" placeholder="选择分类(可选)" clearable style="width: 200px">
+                  <el-option
+                    v-for="cat in categories"
+                    :key="cat.id"
+                    :label="cat.name"
+                    :value="cat.name"
+                  />
+                </el-select>
+                
+                <span class="filter-label" style="margin-left: 20px">导入数量:</span>
+                <el-input-number 
+                  v-model="importLimit" 
+                  :min="1" 
+                  :max="1000" 
+                  :step="10"
+                  style="width: 150px"
+                />
+                <span class="filter-tip">条（按时间倒序，已排除重复）</span>
+              </div>
+              
+              <div class="filter-row" style="margin-top: 12px">
+                <el-button type="success" @click="startImportWithFilters" :loading="importLoading">
+                  {{ importLoading ? '导入中...' : '开始导入' }}
+                </el-button>
+                <el-button type="primary" @click="fetchBilibiliVideos">刷新列表</el-button>
+              </div>
+            </div>
+
+            <el-divider />
+
+            <div class="import-toolbar">
+              <el-input
+                v-model="importSearchKeyword"
+                placeholder="搜索视频标题或BV号"
+                style="width: 300px"
+                @keyup.enter="searchBilibiliVideos"
+                clearable
+              >
+                <template #prefix>
+                  <el-icon><search /></el-icon>
+                </template>
+              </el-input>
+              <el-button type="primary" @click="searchBilibiliVideos">搜索</el-button>
+              <el-button type="warning" @click="startImportSelected" :disabled="selectedBilibiliVideos.length === 0">
+                导入选中 ({{ selectedBilibiliVideos.length }})
+              </el-button>
+            </div>
+
+            <el-table
+              :data="bilibiliVideos"
+              style="width: 100%; margin-top: 16px"
+              @selection-change="handleBilibiliSelectionChange"
+              v-loading="bilibiliLoading"
+            >
+              <el-table-column type="selection" width="55" />
+              <el-table-column prop="bvid" label="BV号" width="140" />
+              <el-table-column prop="title" label="标题" min-width="250">
+                <template #default="{ row }">
+                  <span class="title-cell">{{ row.title }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="category" label="分类" width="100" />
+              <el-table-column prop="viewCount" label="播放量" width="100">
+                <template #default="{ row }">
+                  {{ formatNumber(row.viewCount) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="likeCount" label="点赞" width="80">
+                <template #default="{ row }">
+                  {{ formatNumber(row.likeCount) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="封面" width="80">
+                <template #default="{ row }">
+                  <el-image
+                    v-if="row.cover"
+                    :src="row.cover"
+                    :preview-src-list="[row.cover]"
+                    style="width: 60px; height: 40px"
+                    fit="cover"
+                  />
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="100">
+                <template #default="{ row }">
+                  <el-button size="small" type="primary" @click="importSingleVideo(row)">
+                    导入
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+
+            <div class="pagination">
+              <el-pagination
+                v-model:current-page="bilibiliPage"
+                v-model:page-size="bilibiliPageSize"
+                :page-sizes="[10, 20, 50, 100]"
+                :total="bilibiliTotal"
+                layout="total, sizes, prev, pager, next"
+                @size-change="fetchBilibiliVideos"
+                @current-change="fetchBilibiliVideos"
+              />
+            </div>
+          </el-card>
+
+          <el-card v-if="importTask" class="import-status-card">
+            <template #header>
+              <div class="card-header">
+                <span>📋 导入任务状态</span>
+              </div>
+            </template>
+            
+            <el-descriptions :column="3" border>
+              <el-descriptions-item label="任务ID">{{ importTask.taskId }}</el-descriptions-item>
+              <el-descriptions-item label="状态">
+                <el-tag :type="getTaskStatusType(importTask.status)">
+                  {{ getTaskStatusText(importTask.status) }}
+                </el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="进度">{{ importTask.progress }}</el-descriptions-item>
+              <el-descriptions-item label="总数">{{ importTask.totalCount || 0 }}</el-descriptions-item>
+              <el-descriptions-item label="成功">
+                <span style="color: #67c23a">{{ importTask.successCount || 0 }}</span>
+              </el-descriptions-item>
+              <el-descriptions-item label="跳过">
+                <span style="color: #e6a23c">{{ importTask.skipCount || 0 }}</span>
+              </el-descriptions-item>
+            </el-descriptions>
+
+            <div v-if="importLogs" class="import-logs">
+              <div class="logs-header">
+                <span>执行日志</span>
+                <el-button size="small" @click="clearImportLogs">清空日志</el-button>
+              </div>
+              <el-input
+                type="textarea"
+                v-model="importLogs"
+                :rows="12"
+                readonly
+                class="logs-textarea"
+              />
+            </div>
+          </el-card>
+        </div>
+
         <div v-if="currentMenu === 'users'">
           <div class="empty-state">
             <span class="empty-icon">👥</span>
@@ -374,6 +538,7 @@ export default {
   setup() {
     const router = useRouter()
     const username = ref('')
+    const currentUserId = ref(null)
     const currentMenu = ref('dashboard')
     const videos = ref([])
     const stats = ref({})
@@ -407,12 +572,28 @@ export default {
     let statusCheckInterval = null
     let lastLogIndex = 0
 
+    const bilibiliVideos = ref([])
+    const bilibiliPage = ref(1)
+    const bilibiliPageSize = ref(20)
+    const bilibiliTotal = ref(0)
+    const bilibiliLoading = ref(false)
+    const importSearchKeyword = ref('')
+    const selectedBilibiliVideos = ref([])
+    const importLoading = ref(false)
+    const importTask = ref(null)
+    const importLogs = ref('')
+    const importCategory = ref(null)
+    const importLimit = ref(10)
+    let importStatusCheckInterval = null
+    let importLastLogIndex = 0
+
     const menuTitle = computed(() => {
       const titles = {
         dashboard: '数据概览',
         videos: '视频管理',
         categories: '分类管理',
         crawler: '视频爬取',
+        import: '视频导入',
         users: '用户管理',
         settings: '系统设置'
       }
@@ -745,6 +926,237 @@ export default {
       lastLogIndex = 0
     }
 
+    const fetchBilibiliVideos = async () => {
+      bilibiliLoading.value = true
+      try {
+        const response = await api.get('/admin/bilibili/videos', {
+          params: {
+            page: bilibiliPage.value,
+            pageSize: bilibiliPageSize.value,
+            keyword: importSearchKeyword.value
+          }
+        })
+        if (response.data.success) {
+          bilibiliVideos.value = response.data.data
+          bilibiliTotal.value = response.data.total
+        }
+      } catch (error) {
+        console.error('获取B站视频列表失败:', error)
+        ElMessage.error('获取视频列表失败')
+      } finally {
+        bilibiliLoading.value = false
+      }
+    }
+
+    const searchBilibiliVideos = () => {
+      bilibiliPage.value = 1
+      fetchBilibiliVideos()
+    }
+
+    const handleBilibiliSelectionChange = (selection) => {
+      selectedBilibiliVideos.value = selection
+    }
+
+    const startImportWithFilters = async () => {
+      importLoading.value = true
+      importLogs.value = ''
+      importLastLogIndex = 0
+
+      try {
+        const params = {
+          userId: currentUserId.value
+        }
+        if (importCategory.value) {
+          params.category = importCategory.value
+        }
+        if (importLimit.value) {
+          params.limit = importLimit.value
+        }
+
+        const response = await api.post('/admin/import/start', params)
+
+        if (response.data.success) {
+          importTask.value = {
+            taskId: response.data.taskId,
+            status: 'pending',
+            progress: '正在启动...'
+          }
+          
+          ElMessage.success('导入任务已启动')
+          importStatusCheckInterval = setInterval(checkImportStatus, 1000)
+        } else {
+          ElMessage.error(response.data.message)
+          importLoading.value = false
+        }
+      } catch (error) {
+        console.error('启动导入失败:', error)
+        ElMessage.error('启动导入失败')
+        importLoading.value = false
+      }
+    }
+
+    const startImportAll = async () => {
+      importLoading.value = true
+      importLogs.value = ''
+      importLastLogIndex = 0
+
+      try {
+        const response = await api.post('/admin/import/start', {
+          importAll: true
+        })
+
+        if (response.data.success) {
+          importTask.value = {
+            taskId: response.data.taskId,
+            status: 'pending',
+            progress: '正在启动...'
+          }
+          
+          ElMessage.success('导入任务已启动')
+          importStatusCheckInterval = setInterval(checkImportStatus, 1000)
+        } else {
+          ElMessage.error(response.data.message)
+          importLoading.value = false
+        }
+      } catch (error) {
+        console.error('启动导入失败:', error)
+        ElMessage.error('启动导入失败')
+        importLoading.value = false
+      }
+    }
+
+    const startImportSelected = async () => {
+      if (selectedBilibiliVideos.value.length === 0) {
+        ElMessage.warning('请选择要导入的视频')
+        return
+      }
+
+      importLoading.value = true
+      importLogs.value = ''
+      importLastLogIndex = 0
+
+      const videoIds = selectedBilibiliVideos.value.map(v => v.id)
+
+      try {
+        const response = await api.post('/admin/import/start', {
+          videoIds: videoIds
+        })
+
+        if (response.data.success) {
+          importTask.value = {
+            taskId: response.data.taskId,
+            status: 'pending',
+            progress: '正在启动...'
+          }
+          
+          ElMessage.success('导入任务已启动')
+          importStatusCheckInterval = setInterval(checkImportStatus, 1000)
+        } else {
+          ElMessage.error(response.data.message)
+          importLoading.value = false
+        }
+      } catch (error) {
+        console.error('启动导入失败:', error)
+        ElMessage.error('启动导入失败')
+        importLoading.value = false
+      }
+    }
+
+    const importSingleVideo = async (video) => {
+      importLoading.value = true
+      importLogs.value = ''
+      importLastLogIndex = 0
+
+      try {
+        const response = await api.post('/admin/import/start', {
+          videoIds: [video.id]
+        })
+
+        if (response.data.success) {
+          importTask.value = {
+            taskId: response.data.taskId,
+            status: 'pending',
+            progress: '正在启动...'
+          }
+          
+          ElMessage.success('导入任务已启动')
+          importStatusCheckInterval = setInterval(checkImportStatus, 1000)
+        } else {
+          ElMessage.error(response.data.message)
+          importLoading.value = false
+        }
+      } catch (error) {
+        console.error('启动导入失败:', error)
+        ElMessage.error('启动导入失败')
+        importLoading.value = false
+      }
+    }
+
+    const checkImportStatus = async () => {
+      if (!importTask.value) return
+
+      try {
+        const [statusResponse, logsResponse] = await Promise.all([
+          api.get(`/admin/import/status/${importTask.value.taskId}`),
+          api.get(`/admin/import/logs/${importTask.value.taskId}?since=${importLastLogIndex}`)
+        ])
+
+        if (statusResponse.data.success) {
+          importTask.value.status = statusResponse.data.status
+          importTask.value.progress = statusResponse.data.progress
+          importTask.value.totalCount = statusResponse.data.totalCount
+          importTask.value.successCount = statusResponse.data.successCount
+          importTask.value.skipCount = statusResponse.data.skipCount
+
+          if (statusResponse.data.status === 'completed') {
+            clearInterval(importStatusCheckInterval)
+            importLoading.value = false
+            ElNotification({
+              title: '导入完成',
+              message: `成功: ${importTask.value.successCount}, 跳过: ${importTask.value.skipCount}`,
+              type: 'success'
+            })
+            fetchStats()
+            fetchVideos()
+          } else if (statusResponse.data.status === 'failed') {
+            clearInterval(importStatusCheckInterval)
+            importLoading.value = false
+            ElNotification({
+              title: '导入失败',
+              message: '导入过程中发生错误',
+              type: 'error'
+            })
+          }
+        }
+
+        if (logsResponse.data.success && logsResponse.data.logs && logsResponse.data.logs.length > 0) {
+          const newLogs = logsResponse.data.logs.join('\n')
+          if (importLogs.value) {
+            importLogs.value += '\n' + newLogs
+          } else {
+            importLogs.value = newLogs
+          }
+          importLastLogIndex = logsResponse.data.nextIndex
+          
+          nextTick(() => {
+            const textarea = document.querySelectorAll('.logs-textarea textarea')
+            if (textarea.length > 1) {
+              textarea[1].scrollTop = textarea[1].scrollHeight
+            } else if (textarea.length === 1) {
+              textarea[0].scrollTop = textarea[0].scrollHeight
+            }
+          })
+        }
+      } catch (error) {
+        console.error('获取导入状态失败:', error)
+      }
+    }
+
+    const clearImportLogs = () => {
+      importLogs.value = ''
+      importLastLogIndex = 0
+    }
+
     const logout = () => {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
@@ -755,11 +1167,15 @@ export default {
       if (newMenu === 'categories') {
         fetchCategories()
       }
+      if (newMenu === 'import') {
+        fetchBilibiliVideos()
+      }
     })
 
     onMounted(() => {
       const user = JSON.parse(localStorage.getItem('user') || '{}')
       username.value = user.username || 'Admin'
+      currentUserId.value = user.id || null
       fetchVideos()
       fetchStats()
     })
@@ -767,6 +1183,9 @@ export default {
     onUnmounted(() => {
       if (statusCheckInterval) {
         clearInterval(statusCheckInterval)
+      }
+      if (importStatusCheckInterval) {
+        clearInterval(importStatusCheckInterval)
       }
     })
 
@@ -791,6 +1210,18 @@ export default {
       crawlerLoading,
       crawlerTask,
       crawlerLogs,
+      bilibiliVideos,
+      bilibiliPage,
+      bilibiliPageSize,
+      bilibiliTotal,
+      bilibiliLoading,
+      importSearchKeyword,
+      selectedBilibiliVideos,
+      importLoading,
+      importTask,
+      importLogs,
+      importCategory,
+      importLimit,
       formatNumber,
       formatDate,
       getCategoryPercent,
@@ -810,6 +1241,13 @@ export default {
       startCrawler,
       stopCrawler,
       clearLogs,
+      fetchBilibiliVideos,
+      searchBilibiliVideos,
+      handleBilibiliSelectionChange,
+      startImportWithFilters,
+      startImportSelected,
+      importSingleVideo,
+      clearImportLogs,
       logout
     }
   }
@@ -1356,5 +1794,54 @@ th {
 
 .tips-list li {
   margin-bottom: 8px;
+}
+
+.import-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.import-card {
+  min-height: 400px;
+}
+
+.import-filters {
+  background: #f5f7fa;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.filter-label {
+  font-weight: 500;
+  color: #606266;
+}
+
+.filter-tip {
+  color: #909399;
+  font-size: 12px;
+}
+
+.import-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.import-status-card {
+  margin-top: 16px;
+}
+
+.import-logs {
+  margin-top: 16px;
 }
 </style>
