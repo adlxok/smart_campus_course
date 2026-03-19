@@ -44,7 +44,7 @@ db_config = {
 headers = {
     "Referer": "https://www.bilibili.com/",
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
-    "Cookie": "buvid3=47677070-488E-5B27-0E1A-C882E333757425995infoc; b_nut=1745932225; _uuid=210F271101-DE4A-103C2-1027C-916411F510EDF26747infoc; enable_web_push=DISABLE; enable_feed_channel=ENABLE; rpdid=|(YYJ)ukkmu0J'u~RlmRukll; buvid_fp=20b4e9c1fcd93b1f9714496753d9d2bf; header_theme_version=OPEN; theme-tip-show=SHOWED; theme-avatar-tip-show=SHOWED; PVID=1; LIVE_BUVID=AUTO6317619205625200; CURRENT_QUALITY=80; buvid4=64CB7880-B1B2-3802-2213-F668646AB63G38993-026022815-2eVVYWuB7swYubBfyNf7XQ%3D%3D; ogv_device_support_hdr=0; ogv_device_support_dolby=0; bmg_af_switch=1; bmg_src_def_domain=i0.hdslb.com; theme-switch-show=SHOWED; csrf_state=6796c969eb7608a70a892db6c756bacc; bili_ticket=eyJhbGciOiJIUzI1NiIsImtpZCI6InMwMyIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzQxODA0NDQsImlhdCI6MTc3MzkyMTE4NCwicGx0IjotMX0.37VjDFf9--UtybZnG4Y4ZQqNKEM8Z9P49JHol9QfeIE; bili_ticket_expires=1774180384; SESSDATA=188b2aa4%2C1789473273%2C67e81%2A32CjBD2BPou1OKVe4PWSetKuDvfl7E6ChG7DTI-rpYHhwzHe8y_7gU78Oxor-yim94cyQSVkVsRWRvYlp0eXFmSGN1YUlGbjFEbkxoQllKaFkwcWgtR0tQRk02ZXZ4WTZ5cFNoUkotNG9uR1kySENLclBtemNLMlRTN0F0Qk1zWWFCallGVzVYZVNRIIEC; bili_jct=a7912d1a085208d1b8aa8dd2e0131074; DedeUserID=3546624886311378; DedeUserID__ckMd5=98c8a3d86ab111b0; sid=4y11c1m6; home_feed_column=4; browser_resolution=1352-911; CURRENT_FNVAL=4048; bp_t_offset_3546624886311378=1181472441440927744; b_lsid=C6F25DA9_19D05F46C88"
+    "Cookie": "buvid3=47677070-488E-5B27-0E1A-C882E333757425995infoc; b_nut=1745932225; _uuid=210F271101-DE4A-103C2-1027C-916411F510EDF26747infoc; enable_web_push=DISABLE; enable_feed_channel=ENABLE; rpdid=|(YYJ)ukkmu0J'u~RlmRukll; buvid_fp=20b4e9c1fcd93b1f9714496753d9d2bf; header_theme_version=OPEN; theme-tip-show=SHOWED; theme-avatar-tip-show=SHOWED; PVID=1; LIVE_BUVID=AUTO6317619205625200; CURRENT_QUALITY=80; buvid4=64CB7880-B1B2-3802-2213-F668646AB63G38993-026022815-2eVVYWuB7swYubBfyNf7XQ%3D%3D; ogv_device_support_hdr=0; ogv_device_support_dolby=0; theme-switch-show=SHOWED; bili_ticket=eyJhbGciOiJIUzI1NiIsImtpZCI6InMwMyIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzQxODA0NDQsImlhdCI6MTc3MzkyMTE4NCwicGx0IjotMX0.37VjDFf9--UtybZnG4Y4ZQqNKEM8Z9P49JHol9QfeIE; bili_ticket_expires=1774180384; SESSDATA=188b2aa4%2C1789473273%2C67e81%2A32CjBD2BPou1OKVe4PWSetKuDvfl7E6ChG7DTI-rpYHhwzHe8y_7gU78Oxor-yim94cyQSVkVsRWRvYlp0eXFmSGN1YUlGbjFEbkxoQllKaFkwcWgtR0tQRk02ZXZ4WTZ5cFNoUkotNG9uR1kySENLclBtemNLMlRTN0F0Qk1zWWFCallGVzVYZVNRIIEC; bili_jct=a7912d1a085208d1b8aa8dd2e0131074; DedeUserID=3546624886311378; DedeUserID__ckMd5=98c8a3d86ab111b0; sid=4y11c1m6; home_feed_column=5; browser_resolution=1920-911; bmg_af_switch=1; bmg_src_def_domain=i0.hdslb.com; bp_t_offset_3546624886311378=1181505680192831488; CURRENT_FNVAL=4048; b_lsid=7E48FCF0_19D067FA25B"
 }
 
 def chinese_tokenize(text):
@@ -71,10 +71,11 @@ def init_spark():
     return spark, model
 
 class CrawlerTask:
-    def __init__(self, task_id, url, max_videos):
+    def __init__(self, task_id, url, max_videos, category_code=None):
         self.task_id = task_id
         self.url = url
         self.max_videos = max_videos
+        self.category_code = category_code
         self.status = "pending"
         self.progress = "等待执行..."
         self.logs = []
@@ -92,6 +93,7 @@ class CrawlerTask:
             'taskId': self.task_id,
             'url': self.url,
             'maxVideos': self.max_videos,
+            'categoryCode': self.category_code,
             'status': self.status,
             'progress': self.progress,
             'logs': self.logs,
@@ -459,11 +461,30 @@ def run_import_task(task):
         task.progress = f"导入失败: {str(e)}"
         task.add_log(f"[错误] {str(e)}")
 
+def get_category_map():
+    try:
+        conn = pymysql.connect(**db_config)
+        cursor = conn.cursor()
+        cursor.execute("SELECT code, name FROM category WHERE code IS NOT NULL AND code != ''")
+        result = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return {row[0]: row[1] for row in result}
+    except Exception as e:
+        print(f"获取分类映射失败: {e}")
+        return {}
+
 def save_to_mysql(video_info, task):
     try:
         conn = pymysql.connect(**db_config)
         cursor = conn.cursor()
         tags_json = json.dumps(video_info['tags'], ensure_ascii=False)
+        
+        category_name = video_info['category']
+        if task.category_code:
+            category_map = get_category_map()
+            category_name = category_map.get(task.category_code, video_info['category'])
+        
         sql = """
         INSERT INTO bilibili_video 
         (bvid, title, tags, category, cover, video_url, audio_url, 
@@ -478,7 +499,7 @@ def save_to_mysql(video_info, task):
         reply_count = VALUES(reply_count), update_time = CURRENT_TIMESTAMP
         """
         cursor.execute(sql, (
-            video_info['bvid'], video_info['title'], tags_json, video_info['category'],
+            video_info['bvid'], video_info['title'], tags_json, category_name,
             video_info['cover'], video_info['video_url'], video_info['audio_url'],
             video_info['view'], video_info['danmaku'], video_info['like'],
             video_info['coin'], video_info['favorite'], video_info['share'], video_info['reply']
@@ -615,7 +636,7 @@ async def crawl_bilibili_async(task):
             context = await browser.new_context()
             
             await context.add_cookies([
-                {"name": "SESSDATA", "value": "ed58402d%2C1789215749%2C92fed%2A32CjDndERecaqXHhtLNa5F6EzUKBXXVM1L25WGHmpKHEaghtKmqGIUrMYJP6y1BQhEFc4SVlhmTDZLcVNHbWN1dWNsUTRhM2RPTGw2THNySFEyVnhSYU9zb0lKemtGZEJsNHdvZDJOM1lXNWpBekdid2pFQzFLeEEwUm1tdC1UU1dDRGg3NXNmcXRBIIEC", "domain": ".bilibili.com", "path": "/"}
+                {"name": "SESSDATA", "value": "188b2aa4%2C1789473273%2C67e81%2A32CjBD2BPou1OKVe4PWSetKuDvfl7E6ChG7DTI-rpYHhwzHe8y_7gU78Oxor-yim94cyQSVkVsRWRvYlp0eXFmSGN1YUlGbjFEbkxoQllKaFkwcWgtR0tQRk02ZXZ4WTZ5cFNoUkotNG9uR1kySENLclBtemNLMlRTN0F0Qk1zWWFCallGVzVYZVNRIIEC", "domain": ".bilibili.com", "path": "/"},
             ])
             
             page = await context.new_page()
@@ -861,6 +882,7 @@ def start_crawler():
         
         url = data['url']
         max_videos = data.get('maxVideos', 100)
+        category_code = data.get('categoryCode', None)
         
         if not url or not url.strip():
             return jsonify({
@@ -869,7 +891,7 @@ def start_crawler():
             }), 400
         
         task_id = str(uuid.uuid4())
-        task = CrawlerTask(task_id, url, max_videos)
+        task = CrawlerTask(task_id, url, max_videos, category_code)
         crawler_tasks[task_id] = task
         
         thread = threading.Thread(target=run_crawler_task, args=(task,))

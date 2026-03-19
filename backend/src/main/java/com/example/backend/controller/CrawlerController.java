@@ -27,6 +27,7 @@ public class CrawlerController {
         try {
             String url = (String) params.get("url");
             Integer maxVideos = params.get("maxVideos") != null ? (Integer) params.get("maxVideos") : 100;
+            String categoryCode = (String) params.get("categoryCode");
 
             if (url == null || url.trim().isEmpty()) {
                 response.put("success", false);
@@ -40,6 +41,9 @@ public class CrawlerController {
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("url", url);
             requestBody.put("maxVideos", maxVideos);
+            if (categoryCode != null && !categoryCode.isEmpty()) {
+                requestBody.put("categoryCode", categoryCode);
+            }
             
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
             
@@ -53,7 +57,7 @@ public class CrawlerController {
             if (result != null && Boolean.TRUE.equals(result.get("success"))) {
                 String taskId = (String) result.get("taskId");
                 
-                CrawlerTask task = new CrawlerTask(taskId, url, maxVideos);
+                CrawlerTask task = new CrawlerTask(taskId, url, maxVideos, categoryCode);
                 runningTasks.put(taskId, task);
 
                 response.put("success", true);
@@ -185,16 +189,18 @@ public class CrawlerController {
         private String taskId;
         private String url;
         private int maxVideos;
+        private String categoryCode;
         private String status;
         private String progress;
         private StringBuilder logs;
         private String output;
         private long createTime;
 
-        public CrawlerTask(String taskId, String url, int maxVideos) {
+        public CrawlerTask(String taskId, String url, int maxVideos, String categoryCode) {
             this.taskId = taskId;
             this.url = url;
             this.maxVideos = maxVideos;
+            this.categoryCode = categoryCode;
             this.status = "pending";
             this.progress = "等待执行...";
             this.logs = new StringBuilder();
@@ -211,6 +217,7 @@ public class CrawlerController {
         public String getTaskId() { return taskId; }
         public String getUrl() { return url; }
         public int getMaxVideos() { return maxVideos; }
+        public String getCategoryCode() { return categoryCode; }
         public String getStatus() { return status; }
         public void setStatus(String status) { this.status = status; }
         public String getProgress() { return progress; }

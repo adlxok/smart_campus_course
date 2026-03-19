@@ -225,10 +225,28 @@
             </template>
             
             <el-form :model="crawlerForm" label-width="100px">
+              <el-form-item label="选择分类">
+                <el-select 
+                  v-model="crawlerForm.categoryCode" 
+                  placeholder="选择分类(自动填充URL)"
+                  clearable
+                  style="width: 200px"
+                  @change="onCategoryChange"
+                >
+                  <el-option
+                    v-for="cat in categories"
+                    :key="cat.id"
+                    :label="cat.name"
+                    :value="cat.code"
+                  />
+                </el-select>
+                <span class="form-tip">选择分类后自动填充URL</span>
+              </el-form-item>
+              
               <el-form-item label="目标URL">
                 <el-input 
                   v-model="crawlerForm.url" 
-                  placeholder="请输入B站页面URL，如: https://www.bilibili.com/c/music/"
+                  placeholder="请输入B站页面URL，如: www.bilibili.com/c/music/"
                   clearable
                 >
                   <template #prepend>https://</template>
@@ -564,7 +582,8 @@ export default {
 
     const crawlerForm = ref({
       url: 'www.bilibili.com/c/music/',
-      maxVideos: 100
+      maxVideos: 100,
+      categoryCode: 'music'
     })
     const crawlerLoading = ref(false)
     const crawlerTask = ref(null)
@@ -814,6 +833,12 @@ export default {
       }
     }
 
+    const onCategoryChange = (code) => {
+      if (code) {
+        crawlerForm.value.url = `www.bilibili.com/c/${code}/`
+      }
+    }
+
     const startCrawler = async () => {
       if (!crawlerForm.value.url) {
         ElMessage.warning('请输入目标URL')
@@ -832,7 +857,8 @@ export default {
       try {
         const response = await api.post('/admin/crawler/start', {
           url: url,
-          maxVideos: crawlerForm.value.maxVideos
+          maxVideos: crawlerForm.value.maxVideos,
+          categoryCode: crawlerForm.value.categoryCode
         })
 
         if (response.data.success) {
@@ -1178,6 +1204,7 @@ export default {
       currentUserId.value = user.id || null
       fetchVideos()
       fetchStats()
+      fetchCategories()
     })
 
     onUnmounted(() => {
@@ -1241,6 +1268,7 @@ export default {
       startCrawler,
       stopCrawler,
       clearLogs,
+      onCategoryChange,
       fetchBilibiliVideos,
       searchBilibiliVideos,
       handleBilibiliSelectionChange,
