@@ -403,10 +403,9 @@ def import_single_video(video_data, task, videos_dir, covers_dir):
         
         cursor = conn.cursor()
         sql = """
-        INSERT INTO video (bvid, title, description, video_url, cover_url, user_id, username, view_count, category_id)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO video (bvid, title, video_url, cover_url, user_id, username, category_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
-        video_description = f"播放量: {video_data.get('view_count', 0)}, 点赞: {video_data.get('like_count', 0)}"
         
         if hdfs_video_path:
             final_video_url = f"{HDFS_NAMENODE}{hdfs_video_path}"
@@ -424,12 +423,10 @@ def import_single_video(video_data, task, videos_dir, covers_dir):
         cursor.execute(sql, (
             bvid,
             video_data['title'],
-            video_description,
             final_video_url,
             final_cover_url,
             user_id,
             username_val,
-            video_data.get('view_count', 0),
             category_id
         ))
         video_id = cursor.lastrowid
@@ -584,9 +581,6 @@ def save_to_mysql(video_info, task):
         tags_json = json.dumps(video_info['tags'], ensure_ascii=False)
         
         category_name = video_info['category']
-        if task.category_code:
-            category_map = get_category_map()
-            category_name = category_map.get(task.category_code, video_info['category'])
         
         sql = """
         INSERT INTO bilibili_video 
