@@ -185,6 +185,33 @@ public class CrawlerController {
         return response;
     }
 
+    @PostMapping("/clean-tags")
+    public Map<String, Object> cleanTags() {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> result = restTemplate.postForObject(
+                mlServiceUrl + "/api/crawler/clean-tags", 
+                null, 
+                Map.class
+            );
+            
+            if (result != null && Boolean.TRUE.equals(result.get("success"))) {
+                response.put("success", true);
+                response.put("updatedCount", result.get("updatedCount"));
+                response.put("logs", result.get("logs"));
+                response.put("message", "标签清洗完成");
+            } else {
+                response.put("success", false);
+                response.put("message", result != null ? result.get("error") : "清洗失败");
+            }
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "标签清洗失败: " + e.getMessage());
+        }
+        return response;
+    }
+
     static class CrawlerTask {
         private String taskId;
         private String url;

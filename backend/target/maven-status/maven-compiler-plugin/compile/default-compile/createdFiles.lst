@@ -2,11 +2,13 @@ com\example\backend\mapper\NotificationMapper.class
 com\example\backend\mapper\VideoMapper.class
 com\example\backend\controller\AuthController.class
 com\example\backend\entity\VideoFavorite.class
+com\example\backend\controller\ProxyController.class
 com\example\backend\controller\VideoController.class
 com\example\backend\entity\BilibiliVideo.class
 com\example\backend\utils\JwtUtil.class
 com\example\backend\entity\User.class
 com\example\backend\mapper\ConversationMapper.class
+com\example\backend\service\ProxyService.class
 com\example\backend\controller\PrivateMessageController.class
 com\example\backend\entity\PrivateMessage.class
 com\example\backend\mapper\VideoTagMapper.class
@@ -41,8 +43,10 @@ com\example\backend\config\JwtFilter.class
 com\example\backend\entity\Tag.class
 com\example\backend\mapper\BilibiliVideoMapper.class
 com\example\backend\controller\BilibiliVideoController.class
+com\example\backend\mapper\ProxyMapper.class
 com\example\backend\controller\CrawlerController$CrawlerTask.class
 com\example\backend\controller\UserFollowController.class
+com\example\backend\entity\Proxy.class
 com\example\backend\service\PrivateMessageService.class
 com\example\backend\controller\HelloController.class
 com\example\backend\controller\AdminController.class

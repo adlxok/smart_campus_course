@@ -47,6 +47,14 @@
         </div>
         <div 
           class="nav-item" 
+          :class="{ active: currentMenu === 'proxy' }"
+          @click="currentMenu = 'proxy'"
+        >
+          <span class="icon">🌐</span>
+          <span>代理管理</span>
+        </div>
+        <div 
+          class="nav-item" 
           :class="{ active: currentMenu === 'users' }"
           @click="currentMenu = 'users'"
         >
@@ -279,6 +287,13 @@
                 >
                   停止爬取
                 </el-button>
+                <el-button 
+                  type="warning" 
+                  @click="cleanTags"
+                  :loading="cleaningTags"
+                >
+                  清洗标签
+                </el-button>
               </el-form-item>
             </el-form>
 
@@ -490,6 +505,81 @@
           </div>
         </div>
 
+        <div v-if="currentMenu === 'proxy'" class="proxy-section">
+          <el-card class="proxy-card">
+            <template #header>
+              <div class="card-header">
+                <span>🌐 代理管理</span>
+                <el-button type="primary" size="small" @click="openProxyModal()">添加代理</el-button>
+              </div>
+            </template>
+            
+            <div class="proxy-toolbar">
+              <el-button type="success" @click="fetchProxyList" :loading="proxyLoading">刷新列表</el-button>
+              <el-button type="warning" @click="reloadProxyCache">重载缓存</el-button>
+            </div>
+
+            <el-table :data="proxyList" style="width: 100%; margin-top: 16px" v-loading="proxyLoading">
+              <el-table-column prop="id" label="ID" width="80" />
+              <el-table-column prop="protocol" label="协议" width="100" />
+              <el-table-column prop="host" label="主机" min-width="150" />
+              <el-table-column prop="port" label="端口" width="80" />
+              <el-table-column prop="username" label="用户名" width="100">
+                <template #default="{ row }">
+                  {{ row.username || '-' }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="status" label="状态" width="80">
+                <template #default="{ row }">
+                  <el-tag :type="row.status === 1 ? 'success' : 'danger'">
+                    {{ row.status === 1 ? '启用' : '禁用' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="successCount" label="成功次数" width="90" />
+              <el-table-column prop="failCount" label="失败次数" width="90" />
+              <el-table-column label="操作" width="200">
+                <template #default="{ row }">
+                  <el-button size="small" type="primary" @click="editProxy(row)">编辑</el-button>
+                  <el-button size="small" :type="row.status === 1 ? 'warning' : 'success'" @click="toggleProxyStatus(row)">
+                    {{ row.status === 1 ? '禁用' : '启用' }}
+                  </el-button>
+                  <el-button size="small" type="danger" @click="deleteProxy(row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-card>
+
+          <el-dialog v-model="showProxyModal" :title="proxyForm.id ? '编辑代理' : '添加代理'" width="500px">
+            <el-form :model="proxyForm" label-width="80px">
+              <el-form-item label="协议">
+                <el-select v-model="proxyForm.protocol" style="width: 100%">
+                  <el-option label="HTTP" value="http" />
+                  <el-option label="HTTPS" value="https" />
+                  <el-option label="SOCKS4" value="socks4" />
+                  <el-option label="SOCKS5" value="socks5" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="主机">
+                <el-input v-model="proxyForm.host" placeholder="IP地址或域名" />
+              </el-form-item>
+              <el-form-item label="端口">
+                <el-input-number v-model="proxyForm.port" :min="1" :max="65535" style="width: 100%" />
+              </el-form-item>
+              <el-form-item label="用户名">
+                <el-input v-model="proxyForm.username" placeholder="可选" />
+              </el-form-item>
+              <el-form-item label="密码">
+                <el-input v-model="proxyForm.password" type="password" placeholder="可选" show-password />
+              </el-form-item>
+            </el-form>
+            <template #footer>
+              <el-button @click="showProxyModal = false">取消</el-button>
+              <el-button type="primary" @click="saveProxy">保存</el-button>
+            </template>
+          </el-dialog>
+        </div>
+
         <div v-if="currentMenu === 'settings'">
           <div class="empty-state">
             <span class="empty-icon">⚙️</span>
@@ -605,6 +695,19 @@ export default {
     const importLimit = ref(10)
     let importStatusCheckInterval = null
     let importLastLogIndex = 0
+    const cleaningTags = ref(false)
+
+    const proxyList = ref([])
+    const proxyLoading = ref(false)
+    const showProxyModal = ref(false)
+    const proxyForm = ref({
+      id: null,
+      protocol: 'http',
+      host: '',
+      port: 80,
+      username: '',
+      password: ''
+    })
 
     const menuTitle = computed(() => {
       const titles = {
@@ -613,6 +716,7 @@ export default {
         categories: '分类管理',
         crawler: '视频爬取',
         import: '视频导入',
+        proxy: '代理管理',
         users: '用户管理',
         settings: '系统设置'
       }
@@ -947,9 +1051,141 @@ export default {
       ElMessage.info('已停止监控爬虫状态')
     }
 
+    const cleanTags = async () => {
+      cleaningTags.value = true
+      try {
+        const response = await api.post('/admin/crawler/clean-tags')
+        if (response.data.success) {
+          ElMessage.success(`标签清洗完成，更新了 ${response.data.updatedCount} 条视频`)
+        } else {
+          ElMessage.error(response.data.message || '清洗失败')
+        }
+      } catch (error) {
+        console.error('清洗标签失败:', error)
+        ElMessage.error('清洗标签失败')
+      } finally {
+        cleaningTags.value = false
+      }
+    }
+
     const clearLogs = () => {
       crawlerLogs.value = ''
       lastLogIndex = 0
+    }
+
+    const fetchProxyList = async () => {
+      proxyLoading.value = true
+      try {
+        const response = await api.get('/admin/proxy/list')
+        if (response.data.success) {
+          proxyList.value = response.data.data
+        }
+      } catch (error) {
+        console.error('获取代理列表失败:', error)
+        ElMessage.error('获取代理列表失败')
+      } finally {
+        proxyLoading.value = false
+      }
+    }
+
+    const openProxyModal = (proxy = null) => {
+      if (proxy) {
+        proxyForm.value = {
+          id: proxy.id,
+          protocol: proxy.protocol,
+          host: proxy.host,
+          port: proxy.port,
+          username: proxy.username || '',
+          password: ''
+        }
+      } else {
+        proxyForm.value = {
+          id: null,
+          protocol: 'http',
+          host: '',
+          port: 80,
+          username: '',
+          password: ''
+        }
+      }
+      showProxyModal.value = true
+    }
+
+    const editProxy = (proxy) => {
+      openProxyModal(proxy)
+    }
+
+    const saveProxy = async () => {
+      if (!proxyForm.value.host || !proxyForm.value.port) {
+        ElMessage.warning('主机和端口不能为空')
+        return
+      }
+
+      try {
+        let response
+        if (proxyForm.value.id) {
+          response = await api.put(`/admin/proxy/update/${proxyForm.value.id}`, proxyForm.value)
+        } else {
+          response = await api.post('/admin/proxy/add', proxyForm.value)
+        }
+
+        if (response.data.success) {
+          ElMessage.success(proxyForm.value.id ? '更新成功' : '添加成功')
+          showProxyModal.value = false
+          fetchProxyList()
+        } else {
+          ElMessage.error(response.data.message || '操作失败')
+        }
+      } catch (error) {
+        console.error('保存代理失败:', error)
+        ElMessage.error('保存代理失败')
+      }
+    }
+
+    const deleteProxy = async (proxy) => {
+      if (!confirm(`确定要删除代理 ${proxy.host}:${proxy.port} 吗？`)) return
+
+      try {
+        const response = await api.delete(`/admin/proxy/delete/${proxy.id}`)
+        if (response.data.success) {
+          ElMessage.success('删除成功')
+          fetchProxyList()
+        } else {
+          ElMessage.error(response.data.message || '删除失败')
+        }
+      } catch (error) {
+        console.error('删除代理失败:', error)
+        ElMessage.error('删除代理失败')
+      }
+    }
+
+    const toggleProxyStatus = async (proxy) => {
+      try {
+        const response = await api.put(`/admin/proxy/toggle/${proxy.id}`)
+        if (response.data.success) {
+          ElMessage.success('状态切换成功')
+          fetchProxyList()
+        } else {
+          ElMessage.error(response.data.message || '操作失败')
+        }
+      } catch (error) {
+        console.error('切换状态失败:', error)
+        ElMessage.error('切换状态失败')
+      }
+    }
+
+    const reloadProxyCache = async () => {
+      try {
+        const response = await api.post('/admin/proxy/reload')
+        if (response.data.success) {
+          ElMessage.success(response.data.message)
+        } else {
+          ElMessage.error(response.data.message || '重载失败')
+        }
+      } catch (error) {
+        console.error('重载代理缓存失败:', error)
+        ElMessage.error('重载代理缓存失败')
+      }
     }
 
     const fetchBilibiliVideos = async () => {
@@ -1196,6 +1432,9 @@ export default {
       if (newMenu === 'import') {
         fetchBilibiliVideos()
       }
+      if (newMenu === 'proxy') {
+        fetchProxyList()
+      }
     })
 
     onMounted(() => {
@@ -1268,6 +1507,8 @@ export default {
       startCrawler,
       stopCrawler,
       clearLogs,
+      cleaningTags,
+      cleanTags,
       onCategoryChange,
       fetchBilibiliVideos,
       searchBilibiliVideos,
@@ -1276,6 +1517,17 @@ export default {
       startImportSelected,
       importSingleVideo,
       clearImportLogs,
+      proxyList,
+      proxyLoading,
+      showProxyModal,
+      proxyForm,
+      fetchProxyList,
+      openProxyModal,
+      editProxy,
+      saveProxy,
+      deleteProxy,
+      toggleProxyStatus,
+      reloadProxyCache,
       logout
     }
   }
@@ -1871,5 +2123,21 @@ th {
 
 .import-logs {
   margin-top: 16px;
+}
+
+.proxy-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.proxy-card {
+  min-height: 400px;
+}
+
+.proxy-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }
 </style>

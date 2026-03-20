@@ -16,9 +16,13 @@ import uuid
 import subprocess
 import tempfile
 import shutil
+import random
+import urllib3
 from datetime import datetime
 from playwright.async_api import async_playwright
 from hdfs import InsecureClient
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
 
@@ -26,6 +30,9 @@ MODEL_PATH = r"d:\A_Graduation_Project\project\p2_0\lr_text_classification_model
 VIOLATION_THRESHOLD = 0.9
 HDFS_URL = "http://localhost:50070"
 HDFS_NAMENODE = "hdfs://localhost:9000"
+
+PROXY_FILE = r"d:\A_Graduation_Project\project\p2_0\IP代理.txt"
+proxy_list = []
 
 spark = None
 model = None
@@ -46,6 +53,64 @@ headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
     "Cookie": "buvid3=47677070-488E-5B27-0E1A-C882E333757425995infoc; b_nut=1745932225; _uuid=210F271101-DE4A-103C2-1027C-916411F510EDF26747infoc; enable_web_push=DISABLE; enable_feed_channel=ENABLE; rpdid=|(YYJ)ukkmu0J'u~RlmRukll; buvid_fp=20b4e9c1fcd93b1f9714496753d9d2bf; header_theme_version=OPEN; theme-tip-show=SHOWED; theme-avatar-tip-show=SHOWED; PVID=1; LIVE_BUVID=AUTO6317619205625200; CURRENT_QUALITY=80; buvid4=64CB7880-B1B2-3802-2213-F668646AB63G38993-026022815-2eVVYWuB7swYubBfyNf7XQ%3D%3D; ogv_device_support_hdr=0; ogv_device_support_dolby=0; theme-switch-show=SHOWED; bili_ticket=eyJhbGciOiJIUzI1NiIsImtpZCI6InMwMyIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzQxODA0NDQsImlhdCI6MTc3MzkyMTE4NCwicGx0IjotMX0.37VjDFf9--UtybZnG4Y4ZQqNKEM8Z9P49JHol9QfeIE; bili_ticket_expires=1774180384; SESSDATA=188b2aa4%2C1789473273%2C67e81%2A32CjBD2BPou1OKVe4PWSetKuDvfl7E6ChG7DTI-rpYHhwzHe8y_7gU78Oxor-yim94cyQSVkVsRWRvYlp0eXFmSGN1YUlGbjFEbkxoQllKaFkwcWgtR0tQRk02ZXZ4WTZ5cFNoUkotNG9uR1kySENLclBtemNLMlRTN0F0Qk1zWWFCallGVzVYZVNRIIEC; bili_jct=a7912d1a085208d1b8aa8dd2e0131074; DedeUserID=3546624886311378; DedeUserID__ckMd5=98c8a3d86ab111b0; sid=4y11c1m6; home_feed_column=5; browser_resolution=1920-911; bmg_af_switch=1; bmg_src_def_domain=i0.hdslb.com; bp_t_offset_3546624886311378=1181505680192831488; CURRENT_FNVAL=4048; b_lsid=7E48FCF0_19D067FA25B"
 }
+
+def get_proxies_from_db():
+    proxies = []
+    try:
+        conn = pymysql.connect(**db_config)
+        cursor = conn.cursor()
+        cursor.execute("SELECT protocol, host, port, username, password FROM proxy WHERE status = 1")
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        for row in rows:
+            protocol, host, port, username, password = row
+            if username and password:
+                proxy_url = f"{protocol}://{username}:{password}@{host}:{port}"
+            else:
+                proxy_url = f"{protocol}://{host}:{port}"
+            proxies.append({'http': proxy_url, 'https': proxy_url})
+    except Exception as e:
+        print(f"从数据库读取代理失败: {e}")
+    return proxies
+
+def get_proxies_from_file():
+    proxies = []
+    try:
+        with open(PROXY_FILE, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                if line.startswith('socks5://') or line.startswith('socks4://') or line.startswith('http://') or line.startswith('https://'):
+                    proxies.append({'http': line, 'https': line})
+                elif ':' in line:
+                    parts = line.split(':')
+                    if len(parts) >= 2:
+                        ip = parts[0].strip()
+                        port = parts[1].strip()
+                        proxies.append({'http': f'http://{ip}:{port}', 'https': f'http://{ip}:{port}'})
+    except FileNotFoundError:
+        print(f"警告: 未找到代理文件 {PROXY_FILE}")
+    return proxies
+
+def get_random_proxy():
+    proxies = get_proxies_from_db()
+    if not proxies:
+        proxies = get_proxies_from_file()
+    if not proxies:
+        return None
+    return random.choice(proxies)
+
+def load_proxies():
+    proxies = get_proxies_from_db()
+    if not proxies:
+        proxies = get_proxies_from_file()
+    print(f"当前可用代理数: {len(proxies)}")
+    return len(proxies)
 
 def chinese_tokenize(text):
     if text is None:
@@ -161,23 +226,61 @@ def ensure_hdfs_dirs(client):
         except:
             client.makedirs(d)
 
-def download_file(url, filepath, headers_dict, task=None):
-    try:
-        response = requests.get(url, headers=headers_dict, stream=True, timeout=60)
-        total_size = int(response.headers.get('content-length', 0))
-        downloaded = 0
-        
-        with open(filepath, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-                    downloaded += len(chunk)
-        
-        return True
-    except Exception as e:
+def download_file(url, filepath, headers_dict, task=None, max_retries=3):
+    for attempt in range(max_retries):
+        proxy = get_random_proxy()
+        proxy_str = f"使用代理: {proxy['http']}" if proxy else "不使用代理"
         if task:
-            task.add_log(f"下载失败: {e}")
-        return False
+            task.add_log(f"  第 {attempt + 1} 次尝试下载 ({proxy_str})")
+        
+        try:
+            session = requests.Session()
+            session.verify = False
+            
+            response = session.get(
+                url, 
+                headers=headers_dict, 
+                stream=True, 
+                proxies=proxy, 
+                timeout=30,
+                verify=False
+            )
+            
+            if response.status_code == 200:
+                total_size = int(response.headers.get('content-length', 0))
+                downloaded = 0
+                
+                with open(filepath, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                
+                return True
+            else:
+                if task:
+                    task.add_log(f"  下载失败，状态码: {response.status_code}")
+                
+        except requests.exceptions.SSLError as e:
+            if task:
+                task.add_log(f"  SSL错误，尝试切换代理...")
+            continue
+        except requests.exceptions.ProxyError as e:
+            if task:
+                task.add_log(f"  代理连接失败，尝试切换代理...")
+            continue
+        except requests.exceptions.Timeout:
+            if task:
+                task.add_log(f"  请求超时，尝试重新连接...")
+            continue
+        except requests.exceptions.RequestException as e:
+            if task:
+                task.add_log(f"  下载出错: {e}")
+            continue
+    
+    if task:
+        task.add_log(f"  下载失败，已达到最大重试次数")
+    return False
 
 def merge_video_audio(video_path, audio_path, output_path, task=None):
     cmd = [
@@ -548,7 +651,8 @@ def parse_video_data(html):
             video_info['cover'] = video_data.get('pic', '')
             
             tags_list = initial_state.get('tags', [])
-            video_info['tags'] = [tag.get('tag_name', '') for tag in tags_list if tag.get('tag_name')]
+            all_tags = [tag.get('tag_name', '') for tag in tags_list if tag.get('tag_name')]
+            video_info['tags'] = [tag for tag in all_tags if '发现' not in tag and '计划' not in tag]
             
             video_info['view'] = stat.get('view', 0)
             video_info['danmaku'] = stat.get('danmaku', 0)
@@ -623,6 +727,38 @@ def clean_video_data(task):
         return deleted_count
     except Exception as e:
         task.add_log(f"[数据清洗失败] {e}")
+        return 0
+
+def clean_video_tags(task):
+    task.add_log("[5] 开始清洗标签数据...")
+    try:
+        conn = pymysql.connect(**db_config)
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT id, tags FROM bilibili_video WHERE tags IS NOT NULL AND tags != ''")
+        all_videos = cursor.fetchall()
+        
+        updated_count = 0
+        for video_id, tags_str in all_videos:
+            try:
+                tags = json.loads(tags_str)
+                if isinstance(tags, list):
+                    cleaned_tags = [tag for tag in tags if '发现' not in tag and '计划' not in tag]
+                    if len(cleaned_tags) != len(tags):
+                        new_tags_str = json.dumps(cleaned_tags, ensure_ascii=False)
+                        cursor.execute("UPDATE bilibili_video SET tags = %s WHERE id = %s", (new_tags_str, video_id))
+                        updated_count += 1
+            except:
+                pass
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        task.add_log(f"标签清洗完成，更新了 {updated_count} 条视频的标签")
+        return updated_count
+    except Exception as e:
+        task.add_log(f"[标签清洗失败] {e}")
         return 0
 
 async def crawl_bilibili_async(task):
@@ -720,6 +856,8 @@ async def crawl_bilibili_async(task):
             task.add_log("=" * 50)
             
             deleted_count = clean_video_data(task)
+            
+            clean_video_tags(task)
             
             task.status = "completed"
             task.progress = "爬取完成"
@@ -904,6 +1042,31 @@ def start_crawler():
             'message': '爬虫任务已启动'
         })
         
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/crawler/clean-tags', methods=['POST'])
+def clean_existing_tags():
+    try:
+        class CleanTask:
+            def __init__(self):
+                self.logs = []
+            def add_log(self, msg):
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                self.logs.append(f"[{timestamp}] {msg}")
+                print(msg)
+        
+        task = CleanTask()
+        updated_count = clean_video_tags(task)
+        
+        return jsonify({
+            'success': True,
+            'updatedCount': updated_count,
+            'logs': task.logs
+        })
     except Exception as e:
         return jsonify({
             'success': False,
@@ -1190,5 +1353,7 @@ def model_info():
 if __name__ == '__main__':
     print("正在初始化Spark和加载优化版模型...")
     init_spark()
+    print("正在加载代理列表...")
+    load_proxies()
     print("服务启动中...")
     app.run(host='0.0.0.0', port=5001, debug=False, threaded=True)
