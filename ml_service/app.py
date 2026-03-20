@@ -418,12 +418,12 @@ def import_single_video(video_data, task, videos_dir, covers_dir):
         """
         
         if hdfs_video_path:
-            final_video_url = f"{HDFS_NAMENODE}{hdfs_video_path}"
+            final_video_url = hdfs_video_path
         else:
             final_video_url = video_url
         
         if hdfs_cover_path:
-            final_cover_url = f"{HDFS_NAMENODE}{hdfs_cover_path}"
+            final_cover_url = hdfs_cover_path
         else:
             final_cover_url = cover_url
         
