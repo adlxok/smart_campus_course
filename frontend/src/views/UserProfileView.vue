@@ -58,7 +58,7 @@
             <el-col :xs="24" :sm="12" :md="8" :lg="6" v-for="video in videos" :key="video.id">
               <div class="video-card" @click="goToVideo(video.id)">
                 <div class="video-cover">
-                  <img :src="video.coverUrl || 'http://localhost:8080/backend/image/default_image/defaultImage.png'" alt="视频封面" />
+                  <img :src="formatImageUrl(video.coverUrl) || 'http://localhost:8080/backend/image/default_image/defaultImage.png'" alt="视频封面" />
                   <div class="play-overlay">
                     <el-icon :size="24"><VideoPlay /></el-icon>
                   </div>
@@ -230,6 +230,17 @@ const formatDate = (dateStr: string) => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+const formatImageUrl = (url: string) => {
+  if (!url) return ''
+  if (url.startsWith('hdfs://')) {
+    return `http://localhost:8080/api/image/proxy?url=${encodeURIComponent(url)}`
+  }
+  if (url.startsWith('/covers/') || url.startsWith('/videos/')) {
+    return `http://localhost:8080/api/image/proxy?url=${encodeURIComponent(url)}`
+  }
+  return url
 }
 
 onMounted(() => {

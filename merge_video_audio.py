@@ -73,17 +73,6 @@ def get_next_proxy():
     current_proxy_index = (current_proxy_index + 1) % len(proxy_list)
     return proxy
 
-def test_proxy(proxy, test_url='https://www.bilibili.com', timeout=10):
-    if not proxy:
-        return True
-    try:
-        response = requests.get(test_url, proxies=proxy, timeout=timeout, headers={
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        })
-        return response.status_code == 200
-    except:
-        return False
-
 def download_file_with_retry(url, filename, headers, max_retries=3):
     global proxy_list
     

@@ -17,6 +17,7 @@ import subprocess
 import tempfile
 import shutil
 import random
+import time
 import urllib3
 from datetime import datetime
 from playwright.async_api import async_playwright
@@ -167,13 +168,14 @@ class CrawlerTask:
         }
 
 class ImportTask:
-    def __init__(self, task_id, video_ids=None, import_all=False, category=None, limit=None, user_id=None):
+    def __init__(self, task_id, video_ids=None, import_all=False, category=None, limit=None, user_id=None, use_proxy=True):
         self.task_id = task_id
         self.video_ids = video_ids or []
         self.import_all = import_all
         self.category = category
         self.limit = limit
         self.user_id = user_id
+        self.use_proxy = use_proxy
         self.status = "pending"
         self.progress = "等待执行..."
         self.logs = []
@@ -198,6 +200,7 @@ class ImportTask:
             'category': self.category,
             'limit': self.limit,
             'userId': self.user_id,
+            'useProxy': self.use_proxy,
             'status': self.status,
             'progress': self.progress,
             'logs': self.logs,
@@ -226,9 +229,9 @@ def ensure_hdfs_dirs(client):
         except:
             client.makedirs(d)
 
-def download_file(url, filepath, headers_dict, task=None, max_retries=3):
+def download_file(url, filepath, headers_dict, task=None, max_retries=3, delay=3, use_proxy=True):
     for attempt in range(max_retries):
-        proxy = get_random_proxy()
+        proxy = get_random_proxy() if use_proxy else None
         proxy_str = f"使用代理: {proxy['http']}" if proxy else "不使用代理"
         if task:
             task.add_log(f"  第 {attempt + 1} 次尝试下载 ({proxy_str})")
@@ -256,6 +259,9 @@ def download_file(url, filepath, headers_dict, task=None, max_retries=3):
                             f.write(chunk)
                             downloaded += len(chunk)
                 
+                if delay > 0:
+                    time.sleep(delay)
+                
                 return True
             else:
                 if task:
@@ -264,18 +270,22 @@ def download_file(url, filepath, headers_dict, task=None, max_retries=3):
         except requests.exceptions.SSLError as e:
             if task:
                 task.add_log(f"  SSL错误，尝试切换代理...")
+            time.sleep(1)
             continue
         except requests.exceptions.ProxyError as e:
             if task:
                 task.add_log(f"  代理连接失败，尝试切换代理...")
+            time.sleep(1)
             continue
         except requests.exceptions.Timeout:
             if task:
                 task.add_log(f"  请求超时，尝试重新连接...")
+            time.sleep(1)
             continue
         except requests.exceptions.RequestException as e:
             if task:
                 task.add_log(f"  下载出错: {e}")
+            time.sleep(1)
             continue
     
     if task:
@@ -370,8 +380,8 @@ def import_single_video(video_data, task, videos_dir, covers_dir):
             audio_file = os.path.join(videos_dir, f"{bvid}_audio.m4s")
             merged_file = os.path.join(videos_dir, f"{bvid}.mp4")
             
-            if download_file(video_url, video_file, headers, task):
-                if download_file(audio_url, audio_file, headers, task):
+            if download_file(video_url, video_file, headers, task, use_proxy=task.use_proxy):
+                if download_file(audio_url, audio_file, headers, task, use_proxy=task.use_proxy):
                     task.add_log(f"  合并音视频...")
                     if merge_video_audio(video_file, audio_file, merged_file, task):
                         hdfs_video_path = f"/videos/{bvid}.mp4"
@@ -576,6 +586,11 @@ def get_category_map():
 
 def save_to_mysql(video_info, task):
     try:
+        tags = video_info.get('tags', [])
+        if not tags or len(tags) == 0:
+            task.add_log(f"  跳过 {video_info['bvid']}: 标签为空")
+            return False
+        
         conn = pymysql.connect(**db_config)
         cursor = conn.cursor()
         tags_json = json.dumps(video_info['tags'], ensure_ascii=False)
@@ -729,6 +744,10 @@ def clean_video_tags(task):
         conn = pymysql.connect(**db_config)
         cursor = conn.cursor()
         
+        cursor.execute("DELETE FROM bilibili_video WHERE tags IS NULL OR tags = '' OR tags = '[]'")
+        deleted_empty = cursor.rowcount
+        task.add_log(f"删除了 {deleted_empty} 条标签为空的视频")
+        
         cursor.execute("SELECT id, tags FROM bilibili_video WHERE tags IS NOT NULL AND tags != ''")
         all_videos = cursor.fetchall()
         
@@ -749,8 +768,8 @@ def clean_video_tags(task):
         cursor.close()
         conn.close()
         
-        task.add_log(f"标签清洗完成，更新了 {updated_count} 条视频的标签")
-        return updated_count
+        task.add_log(f"标签清洗完成，删除空标签 {deleted_empty} 条，更新标签 {updated_count} 条")
+        return updated_count + deleted_empty
     except Exception as e:
         task.add_log(f"[标签清洗失败] {e}")
         return 0
@@ -1138,6 +1157,7 @@ def start_import():
         category = data.get('category', None)
         limit = data.get('limit', None)
         user_id = data.get('userId', None)
+        use_proxy = data.get('useProxy', True)
         
         if not video_ids and not import_all and not category and not limit:
             return jsonify({
@@ -1146,7 +1166,7 @@ def start_import():
             }), 400
         
         task_id = str(uuid.uuid4())
-        task = ImportTask(task_id, video_ids, import_all, category, limit, user_id)
+        task = ImportTask(task_id, video_ids, import_all, category, limit, user_id, use_proxy)
         import_tasks[task_id] = task
         
         thread = threading.Thread(target=run_import_task, args=(task,))

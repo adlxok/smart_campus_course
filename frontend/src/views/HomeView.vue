@@ -49,7 +49,7 @@
               <div class="video-card" @click="playVideo(video)">
                 <!-- 视频封面 -->
                 <div class="video-cover">
-                  <img :src="video.coverUrl || 'http://localhost:8080/backend/image/default_image/defaultImage.png'" alt="视频封面" />
+                  <img :src="formatImageUrl(video.coverUrl) || 'http://localhost:8080/backend/image/default_image/defaultImage.png'" alt="视频封面" />
                   <div class="play-overlay">
                     <el-icon :size="24"><VideoPlay /></el-icon>
                   </div>
@@ -265,6 +265,17 @@ const formatViewCount = (count: number) => {
     return (count / 10000).toFixed(1) + '万'
   }
   return count.toString()
+}
+
+const formatImageUrl = (url: string) => {
+  if (!url) return ''
+  if (url.startsWith('hdfs://')) {
+    return `http://localhost:8080/api/image/proxy?url=${encodeURIComponent(url)}`
+  }
+  if (url.startsWith('/covers/') || url.startsWith('/videos/')) {
+    return `http://localhost:8080/api/image/proxy?url=${encodeURIComponent(url)}`
+  }
+  return url
 }
 </script>
 

@@ -371,6 +371,10 @@
                   style="width: 150px"
                 />
                 <span class="filter-tip">条（按时间倒序，已排除重复）</span>
+                
+                <el-checkbox v-model="useProxy" style="margin-left: 20px">
+                  使用代理IP
+                </el-checkbox>
               </div>
               
               <div class="filter-row" style="margin-top: 12px">
@@ -429,8 +433,8 @@
                 <template #default="{ row }">
                   <el-image
                     v-if="row.cover"
-                    :src="row.cover"
-                    :preview-src-list="[row.cover]"
+                    :src="formatImageUrl(row.cover)"
+                    :preview-src-list="[formatImageUrl(row.cover)]"
                     style="width: 60px; height: 40px"
                     fit="cover"
                   />
@@ -693,6 +697,7 @@ export default {
     const importLogs = ref('')
     const importCategory = ref(null)
     const importLimit = ref(10)
+    const useProxy = ref(true)
     let importStatusCheckInterval = null
     let importLastLogIndex = 0
     const cleaningTags = ref(false)
@@ -732,6 +737,17 @@ export default {
         return (num / 10000).toFixed(1) + '万'
       }
       return num.toLocaleString()
+    }
+
+    const formatImageUrl = (url) => {
+      if (!url) return ''
+      if (url.startsWith('hdfs://')) {
+        return `/api/image/proxy?url=${encodeURIComponent(url)}`
+      }
+      if (url.startsWith('/covers/') || url.startsWith('/videos/')) {
+        return `/api/image/proxy?url=${encodeURIComponent(url)}`
+      }
+      return url
     }
 
     const formatDate = (dateStr) => {
@@ -1234,7 +1250,10 @@ export default {
         if (importLimit.value) {
           params.limit = importLimit.value
         }
-
+        if (useProxy.value) {
+          params.useProxy = true
+        }
+        
         const response = await api.post('/admin/import/start', params)
 
         if (response.data.success) {
@@ -1301,7 +1320,8 @@ export default {
 
       try {
         const response = await api.post('/admin/import/start', {
-          videoIds: videoIds
+          videoIds: videoIds,
+          useProxy: useProxy.value
         })
 
         if (response.data.success) {
@@ -1489,6 +1509,7 @@ export default {
       importCategory,
       importLimit,
       formatNumber,
+      formatImageUrl,
       formatDate,
       getCategoryPercent,
       getTaskStatusType,

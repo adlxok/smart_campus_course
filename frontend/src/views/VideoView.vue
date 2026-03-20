@@ -16,7 +16,7 @@
         <div class="video-meta">
           <div class="author-section">
             <div class="author-info" @click="goToProfile">
-              <el-avatar :size="44" :src="video.coverUrl || defaultCover">
+              <el-avatar :size="44" :src="formatImageUrl(video.coverUrl) || defaultCover">
                 {{ video.username.charAt(0).toUpperCase() }}
               </el-avatar>
               <div class="author-detail">
@@ -431,6 +431,17 @@ const newComment = ref('')
 const submitting = ref(false)
 const replyTo = ref<Comment | null>(null)
 const defaultCover = 'http://localhost:8080/backend/image/default_image/defaultImage.png'
+
+const formatImageUrl = (url: string) => {
+  if (!url) return ''
+  if (url.startsWith('hdfs://')) {
+    return `http://localhost:8080/api/image/proxy?url=${encodeURIComponent(url)}`
+  }
+  if (url.startsWith('/covers/') || url.startsWith('/videos/')) {
+    return `http://localhost:8080/api/image/proxy?url=${encodeURIComponent(url)}`
+  }
+  return url
+}
 
 const userInfo = ref<UserInfo>({
   id: 0,

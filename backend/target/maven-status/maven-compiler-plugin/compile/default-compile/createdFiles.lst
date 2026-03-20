@@ -39,6 +39,7 @@ com\example\backend\entity\Notification.class
 com\example\backend\kafka\NotificationProducer.class
 com\example\backend\config\ResourceConfig.class
 com\example\backend\entity\Conversation.class
+com\example\backend\controller\ImageProxyController.class
 com\example\backend\config\JwtFilter.class
 com\example\backend\entity\Tag.class
 com\example\backend\mapper\BilibiliVideoMapper.class
