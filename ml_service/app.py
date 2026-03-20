@@ -49,6 +49,20 @@ db_config = {
     "charset": "utf8mb4"
 }
 
+USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+]
+
+def get_random_user_agent():
+    return random.choice(USER_AGENTS)
+
+def get_random_delay():
+    return random.uniform(1, 3)
+
 headers = {
     "Referer": "https://www.bilibili.com/",
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
@@ -229,20 +243,24 @@ def ensure_hdfs_dirs(client):
         except:
             client.makedirs(d)
 
-def download_file(url, filepath, headers_dict, task=None, max_retries=3, delay=3, use_proxy=True):
+def download_file(url, filepath, headers_dict, task=None, max_retries=3, delay=3, use_proxy=True, session=None):
     for attempt in range(max_retries):
         proxy = get_random_proxy() if use_proxy else None
         proxy_str = f"使用代理: {proxy['http']}" if proxy else "不使用代理"
         if task:
             task.add_log(f"  第 {attempt + 1} 次尝试下载 ({proxy_str})")
         
+        request_headers = headers_dict.copy()
+        request_headers['User-Agent'] = get_random_user_agent()
+        
         try:
-            session = requests.Session()
+            if session is None:
+                session = requests.Session()
             session.verify = False
             
             response = session.get(
                 url, 
-                headers=headers_dict, 
+                headers=request_headers, 
                 stream=True, 
                 proxies=proxy, 
                 timeout=30,
@@ -259,8 +277,7 @@ def download_file(url, filepath, headers_dict, task=None, max_retries=3, delay=3
                             f.write(chunk)
                             downloaded += len(chunk)
                 
-                if delay > 0:
-                    time.sleep(delay)
+                time.sleep(3)
                 
                 return True
             else:
@@ -270,22 +287,22 @@ def download_file(url, filepath, headers_dict, task=None, max_retries=3, delay=3
         except requests.exceptions.SSLError as e:
             if task:
                 task.add_log(f"  SSL错误，尝试切换代理...")
-            time.sleep(1)
+            time.sleep(1 + get_random_delay())
             continue
         except requests.exceptions.ProxyError as e:
             if task:
                 task.add_log(f"  代理连接失败，尝试切换代理...")
-            time.sleep(1)
+            time.sleep(1 + get_random_delay())
             continue
         except requests.exceptions.Timeout:
             if task:
                 task.add_log(f"  请求超时，尝试重新连接...")
-            time.sleep(1)
+            time.sleep(1 + get_random_delay())
             continue
         except requests.exceptions.RequestException as e:
             if task:
                 task.add_log(f"  下载出错: {e}")
-            time.sleep(1)
+            time.sleep(1 + get_random_delay())
             continue
     
     if task:
@@ -355,7 +372,7 @@ def check_video_exists(bvid, conn):
     cursor.execute("SELECT id FROM video WHERE bvid = %s", (bvid,))
     return cursor.fetchone() is not None
 
-def import_single_video(video_data, task, videos_dir, covers_dir):
+def import_single_video(video_data, task, videos_dir, covers_dir, session=None):
     bvid = video_data['bvid']
     
     conn = pymysql.connect(**db_config)
@@ -380,8 +397,8 @@ def import_single_video(video_data, task, videos_dir, covers_dir):
             audio_file = os.path.join(videos_dir, f"{bvid}_audio.m4s")
             merged_file = os.path.join(videos_dir, f"{bvid}.mp4")
             
-            if download_file(video_url, video_file, headers, task, use_proxy=task.use_proxy):
-                if download_file(audio_url, audio_file, headers, task, use_proxy=task.use_proxy):
+            if download_file(video_url, video_file, headers, task, use_proxy=task.use_proxy, session=session):
+                if download_file(audio_url, audio_file, headers, task, use_proxy=task.use_proxy, session=session):
                     task.add_log(f"  合并音视频...")
                     if merge_video_audio(video_file, audio_file, merged_file, task):
                         hdfs_video_path = f"/videos/{bvid}.mp4"
@@ -399,7 +416,7 @@ def import_single_video(video_data, task, videos_dir, covers_dir):
         if cover_url:
             task.add_log(f"  下载封面到本地...")
             cover_file = os.path.join(covers_dir, f"{bvid}.jpg")
-            if download_file(cover_url, cover_file, headers, task):
+            if download_file(cover_url, cover_file, headers, task, use_proxy=task.use_proxy, session=session):
                 hdfs_cover_path = f"/covers/{bvid}.jpg"
                 hdfs_cover_url = upload_to_hdfs(cover_file, hdfs_cover_path, task)
                 if hdfs_cover_url:
@@ -490,6 +507,13 @@ def run_import_task(task):
         if not os.path.exists(d):
             os.makedirs(d)
     
+    shared_session = requests.Session()
+    shared_session.verify = False
+    shared_session.headers.update({
+        'User-Agent': get_random_user_agent(),
+        'Referer': 'https://www.bilibili.com/'
+    })
+    
     try:
         conn = pymysql.connect(**db_config)
         cursor = conn.cursor()
@@ -551,7 +575,7 @@ def run_import_task(task):
                 'create_time': row[12]
             }
             
-            import_single_video(video_data, task, videos_dir, covers_dir)
+            import_single_video(video_data, task, videos_dir, covers_dir, session=shared_session)
         
         task.status = "completed"
         task.progress = "导入完成"
@@ -688,9 +712,15 @@ def parse_video_data(html):
     
     return video_info
 
-def get_html_by_requests(url):
-    session = requests.Session()
-    response = session.get(url=url, headers=headers, timeout=30)
+def get_html_by_requests(url, session=None):
+    request_headers = headers.copy()
+    request_headers['User-Agent'] = get_random_user_agent()
+    
+    if session is None:
+        session = requests.Session()
+    
+    response = session.get(url=url, headers=request_headers, timeout=30)
+    time.sleep(get_random_delay())
     return response.text
 
 def get_valid_categories():
@@ -779,10 +809,19 @@ async def crawl_bilibili_async(task):
     task.add_log(f"Playwright 自动化爬取 B站 (目标: {task.max_videos}条)")
     task.add_log("=" * 50)
     
+    shared_session = requests.Session()
+    shared_session.verify = False
+    shared_session.headers.update({
+        'User-Agent': get_random_user_agent(),
+        'Referer': 'https://www.bilibili.com/'
+    })
+    
     try:
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=False)
-            context = await browser.new_context()
+            context = await browser.new_context(
+                user_agent=get_random_user_agent()
+            )
             
             await context.add_cookies([
                 {"name": "SESSDATA", "value": "188b2aa4%2C1789473273%2C67e81%2A32CjBD2BPou1OKVe4PWSetKuDvfl7E6ChG7DTI-rpYHhwzHe8y_7gU78Oxor-yim94cyQSVkVsRWRvYlp0eXFmSGN1YUlGbjFEbkxoQllKaFkwcWgtR0tQRk02ZXZ4WTZ5cFNoUkotNG9uR1kySENLclBtemNLMlRTN0F0Qk1zWWFCallGVzVYZVNRIIEC", "domain": ".bilibili.com", "path": "/"},
@@ -793,7 +832,7 @@ async def crawl_bilibili_async(task):
             task.add_log(f"[1] 打开B站页面: {task.url}")
             task.progress = "正在打开页面..."
             await page.goto(task.url, wait_until="networkidle")
-            await page.wait_for_timeout(2000)
+            await page.wait_for_timeout(int(2000 + get_random_delay() * 1000))
             
             task.add_log("[2] 滚动页面获取视频链接...")
             task.progress = "正在获取视频链接..."
@@ -825,7 +864,7 @@ async def crawl_bilibili_async(task):
                 task.progress = f"已获取 {len(video_links)} 个链接"
                 
                 await page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
-                await page.wait_for_timeout(1000)
+                await page.wait_for_timeout(int(1000 + get_random_delay() * 1000))
             
             unique_links = list(video_links)[:task.max_videos]
             task.add_log(f"[3] 共获取 {len(unique_links)} 个视频链接，准备爬取")
@@ -838,7 +877,7 @@ async def crawl_bilibili_async(task):
                 task.progress = f"正在爬取 {i}/{len(unique_links)}"
                 
                 try:
-                    html = get_html_by_requests(video_url)
+                    html = get_html_by_requests(video_url, session=shared_session)
                     video_info = parse_video_data(html)
                     
                     if video_info.get('bvid'):
