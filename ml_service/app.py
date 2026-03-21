@@ -53,8 +53,7 @@ USER_AGENTS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
-    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15'
 ]
 
 def get_random_user_agent():
@@ -712,7 +711,7 @@ def parse_video_data(html):
     
     return video_info
 
-def get_html_by_requests(url, session=None):
+def get_html_by_requests(url, session=None, debug=False):
     request_headers = headers.copy()
     request_headers['User-Agent'] = get_random_user_agent()
     
@@ -721,6 +720,9 @@ def get_html_by_requests(url, session=None):
     
     response = session.get(url=url, headers=request_headers, timeout=30)
     time.sleep(get_random_delay())
+    
+    if debug:
+        return response.text, request_headers, response.status_code
     return response.text
 
 def get_valid_categories():
@@ -877,7 +879,7 @@ async def crawl_bilibili_async(task):
                 task.progress = f"正在爬取 {i}/{len(unique_links)}"
                 
                 try:
-                    html = get_html_by_requests(video_url, session=shared_session)
+                    html, req_headers, status_code = get_html_by_requests(video_url, session=shared_session, debug=True)
                     video_info = parse_video_data(html)
                     
                     if video_info.get('bvid'):
@@ -892,6 +894,9 @@ async def crawl_bilibili_async(task):
                             fail_count += 1
                     else:
                         task.add_log("跳过: 无法解析视频数据")
+                        task.add_log(f"  请求Headers: User-Agent={req_headers.get('User-Agent', 'N/A')}")
+                        task.add_log(f"  响应状态码: {status_code}")
+                        task.add_log(f"  HTML长度: {len(html)} 字符")
                         fail_count += 1
                         
                 except Exception as e:

@@ -697,7 +697,7 @@ export default {
     const importLogs = ref('')
     const importCategory = ref(null)
     const importLimit = ref(10)
-    const useProxy = ref(true)
+    const useProxy = ref(false)
     let importStatusCheckInterval = null
     let importLastLogIndex = 0
     const cleaningTags = ref(false)
@@ -1250,9 +1250,7 @@ export default {
         if (importLimit.value) {
           params.limit = importLimit.value
         }
-        if (useProxy.value) {
-          params.useProxy = true
-        }
+        params.useProxy = useProxy.value
         
         const response = await api.post('/admin/import/start', params)
 
