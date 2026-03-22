@@ -55,6 +55,14 @@
         </div>
         <div 
           class="nav-item" 
+          :class="{ active: currentMenu === 'analysis' }"
+          @click="goToAnalysis"
+        >
+          <span class="icon">📊</span>
+          <span>数据分析</span>
+        </div>
+        <div 
+          class="nav-item" 
           :class="{ active: currentMenu === 'users' }"
           @click="currentMenu = 'users'"
         >
@@ -1443,6 +1451,10 @@ export default {
       router.push('/login')
     }
 
+    const goToAnalysis = () => {
+      router.push('/analysis')
+    }
+
     watch(currentMenu, (newMenu) => {
       if (newMenu === 'categories') {
         fetchCategories()
@@ -1547,7 +1559,8 @@ export default {
       deleteProxy,
       toggleProxyStatus,
       reloadProxyCache,
-      logout
+      logout,
+      goToAnalysis
     }
   }
 }

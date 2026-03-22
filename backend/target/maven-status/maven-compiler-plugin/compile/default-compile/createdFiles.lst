@@ -57,6 +57,7 @@ com\example\backend\config\CorsConfig.class
 com\example\backend\mapper\UserFollowMapper.class
 com\example\backend\controller\AvatarController.class
 com\example\backend\entity\VideoTag.class
+com\example\backend\controller\DataAnalysisController.class
 com\example\backend\mapper\UserMapper.class
 com\example\backend\entity\Comment.class
 com\example\backend\entity\Video.class

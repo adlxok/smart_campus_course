@@ -576,7 +576,7 @@ def import_single_video(video_data, task, videos_dir, covers_dir, session=None):
                     try:
                         os.remove(cover_file)
                         task.add_log(f"  已删除本地封面文件: {cover_file}")
-                    except Exception as e:
+                    except Exception as e:                                                         
                         task.add_log(f"  删除本地封面文件失败: {e}")
                 else:
                     hdfs_cover_path = None

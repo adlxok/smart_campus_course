@@ -32,6 +32,7 @@ D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\c
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\kafka\NotificationConsumer.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\utils\JwtUtil.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\config\JwtFilter.java
+D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\DataAnalysisController.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\dto\NotificationMessage.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\AvatarController.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\config\KafkaConfig.java
