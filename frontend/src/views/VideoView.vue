@@ -8,7 +8,7 @@
     </div>
     
     <div class="video-container" v-if="video">
-      <video ref="videoPlayer" :src="video.videoUrl" controls autoplay class="main-video"></video>
+      <video ref="videoPlayer" :src="formatVideoUrl(video.videoUrl)" controls autoplay class="main-video"></video>
       
       <div class="video-info">
         <h1 class="video-title">{{ video.title }}</h1>
@@ -439,6 +439,17 @@ const formatImageUrl = (url: string) => {
   }
   if (url.startsWith('/covers/') || url.startsWith('/videos/')) {
     return `http://localhost:8080/api/image/proxy?url=${encodeURIComponent(url)}`
+  }
+  return url
+}
+
+const formatVideoUrl = (url: string) => {
+  if (!url) return ''
+  if (url.startsWith('hdfs://')) {
+    return `http://localhost:8080/api/video/proxy?url=${encodeURIComponent(url)}`
+  }
+  if (url.startsWith('/videos/')) {
+    return `http://localhost:8080/api/video/proxy?url=${encodeURIComponent(url)}`
   }
   return url
 }

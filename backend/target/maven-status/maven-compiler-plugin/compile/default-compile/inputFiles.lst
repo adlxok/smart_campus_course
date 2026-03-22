@@ -45,6 +45,7 @@ D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\c
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\config\SecurityConfig.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\VideoFavorite.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\AuthController.java
+D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\VideoProxyController.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\mapper\BilibiliVideoMapper.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\config\CorsConfig.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\mapper\TagMapper.java

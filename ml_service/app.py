@@ -68,6 +68,160 @@ headers = {
     "Cookie": "buvid3=47677070-488E-5B27-0E1A-C882E333757425995infoc; b_nut=1745932225; _uuid=210F271101-DE4A-103C2-1027C-916411F510EDF26747infoc; enable_web_push=DISABLE; enable_feed_channel=ENABLE; rpdid=|(YYJ)ukkmu0J'u~RlmRukll; buvid_fp=20b4e9c1fcd93b1f9714496753d9d2bf; header_theme_version=OPEN; theme-tip-show=SHOWED; theme-avatar-tip-show=SHOWED; PVID=1; LIVE_BUVID=AUTO6317619205625200; CURRENT_QUALITY=80; buvid4=64CB7880-B1B2-3802-2213-F668646AB63G38993-026022815-2eVVYWuB7swYubBfyNf7XQ%3D%3D; ogv_device_support_hdr=0; ogv_device_support_dolby=0; theme-switch-show=SHOWED; bili_ticket=eyJhbGciOiJIUzI1NiIsImtpZCI6InMwMyIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzQxODA0NDQsImlhdCI6MTc3MzkyMTE4NCwicGx0IjotMX0.37VjDFf9--UtybZnG4Y4ZQqNKEM8Z9P49JHol9QfeIE; bili_ticket_expires=1774180384; SESSDATA=188b2aa4%2C1789473273%2C67e81%2A32CjBD2BPou1OKVe4PWSetKuDvfl7E6ChG7DTI-rpYHhwzHe8y_7gU78Oxor-yim94cyQSVkVsRWRvYlp0eXFmSGN1YUlGbjFEbkxoQllKaFkwcWgtR0tQRk02ZXZ4WTZ5cFNoUkotNG9uR1kySENLclBtemNLMlRTN0F0Qk1zWWFCallGVzVYZVNRIIEC; bili_jct=a7912d1a085208d1b8aa8dd2e0131074; DedeUserID=3546624886311378; DedeUserID__ckMd5=98c8a3d86ab111b0; sid=4y11c1m6; home_feed_column=5; browser_resolution=1920-911; bmg_af_switch=1; bmg_src_def_domain=i0.hdslb.com; bp_t_offset_3546624886311378=1181505680192831488; CURRENT_FNVAL=4048; b_lsid=7E48FCF0_19D067FA25B"
 }
 
+def get_video_info_by_api(bvid, session=None):
+    try:
+        request_headers = headers.copy()
+        request_headers['User-Agent'] = get_random_user_agent()
+        
+        url = f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}"
+        
+        if session is None:
+            session = requests.Session()
+        
+        response = session.get(url, headers=request_headers, timeout=30)
+        data = response.json()
+        
+        if data.get('code') != 0:
+            return None, f"API错误: {data.get('message', '未知错误')}"
+        
+        video_data = data.get('data', {})
+        
+        info = {
+            'bvid': video_data.get('bvid', bvid),
+            'title': video_data.get('title', ''),
+            'cover': video_data.get('pic', ''),
+            'cid': video_data.get('cid', 0),
+            'duration': video_data.get('duration', 0),
+            'view': video_data.get('stat', {}).get('view', 0),
+            'danmaku': video_data.get('stat', {}).get('danmaku', 0),
+            'like': video_data.get('stat', {}).get('like', 0),
+            'coin': video_data.get('stat', {}).get('coin', 0),
+            'favorite': video_data.get('stat', {}).get('favorite', 0),
+            'share': video_data.get('stat', {}).get('share', 0),
+            'reply': video_data.get('stat', {}).get('reply', 0),
+            'owner': video_data.get('owner', {}).get('name', ''),
+            'tid': video_data.get('tid', 0),
+            'tname': video_data.get('tname', ''),
+        }
+        
+        return info, None
+    except Exception as e:
+        return None, str(e)
+
+def get_play_url_by_api(bvid, cid, session=None):
+    try:
+        request_headers = headers.copy()
+        request_headers['User-Agent'] = get_random_user_agent()
+        
+        url = f"https://api.bilibili.com/x/player/playurl?bvid={bvid}&cid={cid}&fnval=4048&fnver=0&fourk=1"
+        
+        if session is None:
+            session = requests.Session()
+        
+        response = session.get(url, headers=request_headers, timeout=30)
+        data = response.json()
+        
+        if data.get('code') != 0:
+            return None, None, f"API错误: {data.get('message', '未知错误')}"
+        
+        play_data = data.get('data', {})
+        dash = play_data.get('dash', {})
+        
+        video_url = None
+        audio_url = None
+        
+        if dash:
+            video_list = dash.get('video', [])
+            audio_list = dash.get('audio', [])
+            
+            if video_list:
+                video_url = video_list[0].get('baseUrl') or video_list[0].get('base_url')
+            
+            if audio_list:
+                audio_url = audio_list[0].get('baseUrl') or audio_list[0].get('base_url')
+        
+        return video_url, audio_url, None
+    except Exception as e:
+        return None, None, str(e)
+
+async def download_video_via_hellotik(bvid, title, task=None, download_dir="D:\\Downloads"):
+    try:
+        video_url = f"https://www.bilibili.com/video/{bvid}"
+        
+        title_short = title[:16] if len(title) > 16 else title
+        title_clean = "".join(c for c in title_short if c.isalnum() or c in (' ', '-', '_', '，', '。', '！', '？', '、'))
+        
+        if len(title) > 16:
+            expected_filename = f"video_{title_clean}..._0.mp4"
+        else:
+            expected_filename = f"video_{title_clean}_0.mp4"
+        
+        expected_filepath = os.path.join(download_dir, expected_filename)
+        
+        if task:
+            task.add_log(f"  使用hellotik下载视频...")
+            task.add_log(f"  视频链接: {video_url}")
+            task.add_log(f"  预期文件名: {expected_filename}")
+        
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=False)
+            context = await browser.new_context(
+                user_agent=get_random_user_agent(),
+                accept_downloads=True
+            )
+            page = await context.new_page()
+            
+            await page.goto("https://www.hellotik.app/zh/bilibili", wait_until="networkidle")
+            await page.wait_for_timeout(2000)
+            
+
+            input_element = await page.wait_for_selector('input[type="text"]', timeout=10000)
+            
+            await input_element.fill(video_url)
+            await page.wait_for_timeout(500)
+            
+            parse_button = await page.wait_for_selector('button:has-text("解析视频")', timeout=10000)
+            await parse_button.click()
+            
+            await page.wait_for_timeout(3000)
+            
+            download_button = await page.wait_for_selector('button:has-text("下载无水印视频")', timeout=60000)
+            
+            async with page.expect_download(timeout=300000) as download_info:
+                await download_button.click()
+            
+            download = await download_info.value
+            
+            temp_path = await download.path()
+            
+            if not os.path.exists(download_dir):
+                os.makedirs(download_dir)
+            
+            final_path = os.path.join(download_dir, expected_filename)
+            shutil.copy(temp_path, final_path)
+            
+            await browser.close()
+            
+            if task:
+                task.add_log(f"  视频已下载到: {final_path}")
+            
+            return final_path
+            
+    except Exception as e:
+        if task:
+            task.add_log(f"  hellotik下载失败: {e}")
+        return None
+
+def download_video_via_hellotik_sync(bvid, title, task=None, download_dir="D:\\Downloads"):
+    import asyncio
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    
+    return loop.run_until_complete(download_video_via_hellotik(bvid, title, task, download_dir))
+
 def get_proxies_from_db():
     proxies = []
     try:
@@ -373,6 +527,7 @@ def check_video_exists(bvid, conn):
 
 def import_single_video(video_data, task, videos_dir, covers_dir, session=None):
     bvid = video_data['bvid']
+    title = video_data['title']
     
     conn = pymysql.connect(**db_config)
     try:
@@ -381,36 +536,35 @@ def import_single_video(video_data, task, videos_dir, covers_dir, session=None):
             task.skip_count += 1
             return False
         
-        task.add_log(f"[处理] {bvid} - {video_data['title'][:30]}...")
+        task.add_log(f"[处理] {bvid} - {title[:30]}...")
         
-        video_url = video_data.get('video_url', '')
-        audio_url = video_data.get('audio_url', '')
         cover_url = video_data.get('cover', '')
+        
+        task.add_log(f"  通过API获取视频信息...")
+        video_info, err = get_video_info_by_api(bvid, session)
+        if err:
+            task.add_log(f"  获取视频信息失败: {err}")
+            task.fail_count += 1
+            return False
+        task.add_log(f"  通过API获取视频信息成功,{video_info}")
+        if not cover_url:
+            cover_url = video_info.get('cover', '')
         
         hdfs_video_path = None
         hdfs_cover_path = None
         
-        if video_url and audio_url:
-            task.add_log(f"  下载视频流到本地...")
-            video_file = os.path.join(videos_dir, f"{bvid}_video.m4s")
-            audio_file = os.path.join(videos_dir, f"{bvid}_audio.m4s")
-            merged_file = os.path.join(videos_dir, f"{bvid}.mp4")
-            
-            if download_file(video_url, video_file, headers, task, use_proxy=task.use_proxy, session=session):
-                if download_file(audio_url, audio_file, headers, task, use_proxy=task.use_proxy, session=session):
-                    task.add_log(f"  合并音视频...")
-                    if merge_video_audio(video_file, audio_file, merged_file, task):
-                        hdfs_video_path = f"/videos/{bvid}.mp4"
-                        hdfs_video_url = upload_to_hdfs(merged_file, hdfs_video_path, task)
-                        if hdfs_video_url:
-                            task.add_log(f"  视频已上传到HDFS: {hdfs_video_path}")
-                        else:
-                            hdfs_video_path = None
-                    
-                    if os.path.exists(video_file):
-                        os.remove(video_file)
-                    if os.path.exists(audio_file):
-                        os.remove(audio_file)
+        downloaded_file = download_video_via_hellotik_sync(bvid, title, task)
+        
+        if downloaded_file and os.path.exists(downloaded_file):
+            hdfs_video_path = f"/videos/{bvid}.mp4"
+            hdfs_video_url = upload_to_hdfs(downloaded_file, hdfs_video_path, task)
+            if hdfs_video_url:
+                task.add_log(f"  视频已上传到HDFS: {hdfs_video_path}")
+            else:
+                hdfs_video_path = None
+                task.add_log(f"  HDFS上传失败")
+        else:
+            task.add_log(f"  视频下载失败")
         
         if cover_url:
             task.add_log(f"  下载封面到本地...")
