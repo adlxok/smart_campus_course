@@ -144,24 +144,24 @@ def get_play_url_by_api(bvid, cid, session=None):
     except Exception as e:
         return None, None, str(e)
 
-async def download_video_via_hellotik(bvid, title, task=None, download_dir="D:\\Downloads"):
+async def download_video_via_hellotik(bvid, title, task=None, download_dir=None):
     try:
         video_url = f"https://www.bilibili.com/video/{bvid}"
         
-        title_short = title[:16] if len(title) > 16 else title
-        title_clean = "".join(c for c in title_short if c.isalnum() or c in (' ', '-', '_', '，', '。', '！', '？', '、'))
+        if download_dir is None:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            download_dir = os.path.join(base_dir, "downloaded_videos")
         
-        if len(title) > 16:
-            expected_filename = f"video_{title_clean}..._0.mp4"
-        else:
-            expected_filename = f"video_{title_clean}_0.mp4"
+        if not os.path.exists(download_dir):
+            os.makedirs(download_dir)
         
+        expected_filename = f"{bvid}.mp4"
         expected_filepath = os.path.join(download_dir, expected_filename)
         
         if task:
             task.add_log(f"  使用hellotik下载视频...")
             task.add_log(f"  视频链接: {video_url}")
-            task.add_log(f"  预期文件名: {expected_filename}")
+            task.add_log(f"  目标文件: {expected_filepath}")
         
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=False)
@@ -174,7 +174,6 @@ async def download_video_via_hellotik(bvid, title, task=None, download_dir="D:\\
             await page.goto("https://www.hellotik.app/zh/bilibili", wait_until="networkidle")
             await page.wait_for_timeout(2000)
             
-
             input_element = await page.wait_for_selector('input[type="text"]', timeout=10000)
             
             await input_element.fill(video_url)
@@ -191,28 +190,23 @@ async def download_video_via_hellotik(bvid, title, task=None, download_dir="D:\\
                 await download_button.click()
             
             download = await download_info.value
-            
             temp_path = await download.path()
             
-            if not os.path.exists(download_dir):
-                os.makedirs(download_dir)
-            
-            final_path = os.path.join(download_dir, expected_filename)
-            shutil.copy(temp_path, final_path)
+            shutil.copy(temp_path, expected_filepath)
             
             await browser.close()
             
             if task:
-                task.add_log(f"  视频已下载到: {final_path}")
+                task.add_log(f"  视频已下载到: {expected_filepath}")
             
-            return final_path
+            return expected_filepath
             
     except Exception as e:
         if task:
             task.add_log(f"  hellotik下载失败: {e}")
         return None
 
-def download_video_via_hellotik_sync(bvid, title, task=None, download_dir="D:\\Downloads"):
+def download_video_via_hellotik_sync(bvid, title, task=None, download_dir=None):
     import asyncio
     try:
         loop = asyncio.get_event_loop()
@@ -560,6 +554,11 @@ def import_single_video(video_data, task, videos_dir, covers_dir, session=None):
             hdfs_video_url = upload_to_hdfs(downloaded_file, hdfs_video_path, task)
             if hdfs_video_url:
                 task.add_log(f"  视频已上传到HDFS: {hdfs_video_path}")
+                try:
+                    os.remove(downloaded_file)
+                    task.add_log(f"  已删除本地视频文件: {downloaded_file}")
+                except Exception as e:
+                    task.add_log(f"  删除本地视频文件失败: {e}")
             else:
                 hdfs_video_path = None
                 task.add_log(f"  HDFS上传失败")
@@ -574,6 +573,11 @@ def import_single_video(video_data, task, videos_dir, covers_dir, session=None):
                 hdfs_cover_url = upload_to_hdfs(cover_file, hdfs_cover_path, task)
                 if hdfs_cover_url:
                     task.add_log(f"  封面已上传到HDFS: {hdfs_cover_path}")
+                    try:
+                        os.remove(cover_file)
+                        task.add_log(f"  已删除本地封面文件: {cover_file}")
+                    except Exception as e:
+                        task.add_log(f"  删除本地封面文件失败: {e}")
                 else:
                     hdfs_cover_path = None
         
