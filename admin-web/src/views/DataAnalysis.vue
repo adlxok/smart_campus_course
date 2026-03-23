@@ -195,7 +195,7 @@
           </div>
         </div>
         
-        <div class="chart-card">
+        <div class="chart-card tag-cloud-card">
           <div class="card-header-decoration"></div>
           <div class="card-title">
             <div class="title-line"></div>
@@ -203,11 +203,14 @@
               <span class="title-icon">☁️</span>
               热门标签云
             </span>
+            <el-select v-model="selectedCategory" size="small" @change="fetchTagCloud" class="category-select" placeholder="选择分类" :teleported="false">
+              <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
+            </el-select>
           </div>
           <div ref="wordCloudChart" class="chart-container word-cloud"></div>
         </div>
         
-        <div class="chart-card">
+        <div class="chart-card interaction-card">
           <div class="card-header-decoration"></div>
           <div class="card-title">
             <div class="title-line"></div>
@@ -215,6 +218,9 @@
               <span class="title-icon">⚡</span>
               互动率分析
             </span>
+            <el-select v-model="interactionCategory" size="small" @change="fetchInteractionOverview" class="category-select" placeholder="选择分类" :teleported="false">
+              <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
+            </el-select>
           </div>
           <div ref="funnelChart" class="chart-container"></div>
         </div>
@@ -253,6 +259,9 @@ const overview = ref({
 const topVideos = ref([])
 const topSortBy = ref('view')
 const tagCloud = ref([])
+const categories = ref([])
+const selectedCategory = ref('全部')
+const interactionCategory = ref('全部')
 const dataCompleteness = ref({
   totalVideos: 0,
   duplicateBvids: 0,
@@ -432,6 +441,27 @@ const fetchOverview = async () => {
   }
 }
 
+const fetchInteractionOverview = async () => {
+  try {
+    const params = interactionCategory.value !== '全部' ? { category: interactionCategory.value } : {}
+    const res = await api.get('/admin/analysis/overview', { params })
+    if (res.data.success) {
+      const data = res.data
+      renderFunnelChartWithData({
+        totalViewCount: data.totalViewCount || 0,
+        totalLikeCount: data.totalLikeCount || 0,
+        totalCoinCount: data.totalCoinCount || 0,
+        totalFavoriteCount: data.totalFavoriteCount || 0,
+        totalDanmakuCount: data.totalDanmakuCount || 0,
+        totalShareCount: data.totalShareCount || 0,
+        totalReplyCount: data.totalReplyCount || 0
+      })
+    }
+  } catch (e) {
+    console.error(e)
+  }
+}
+
 const fetchTopVideos = async () => {
   try {
     const res = await api.get('/admin/analysis/top-videos', {
@@ -448,11 +478,16 @@ const fetchTopVideos = async () => {
 const fetchCategoryDistribution = async () => {
   try {
     const res = await api.get('/admin/analysis/category-distribution')
+    console.log('分类分布API返回数据:', res.data)
     if (res.data.success) {
+      console.log('分类数据数组:', res.data.data)
+      const categoryList = ['全部', ...res.data.data.map(item => item.category)]
+      console.log('处理后的分类列表:', categoryList)
+      categories.value = categoryList
       renderCategoryChart(res.data.data)
     }
   } catch (e) {
-    console.error(e)
+    console.error('获取分类分布失败:', e)
   }
 }
 
@@ -480,9 +515,10 @@ const fetchInteractionStats = async () => {
   }
 }
 
-const fetchTagCloud = async () => {
+const fetchTagCloud = async (category = null) => {
   try {
-    const res = await api.get('/admin/analysis/tag-cloud')
+    const params = category && category !== '全部' ? { category } : {}
+    const res = await api.get('/admin/analysis/tag-cloud', { params })
     if (res.data.success) {
       tagCloud.value = res.data.data.slice(0, 80)
       renderWordCloudChart(res.data.data.slice(0, 80))
@@ -991,6 +1027,89 @@ const renderFunnelChart = (data) => {
   chartInstances.funnel.setOption(option)
 }
 
+const renderFunnelChartWithData = (data) => {
+  if (!chartInstances.funnel) {
+    chartInstances.funnel = echarts.init(funnelChart.value)
+  }
+  
+  const totalView = data.totalViewCount || 1
+  const totalLike = data.totalLikeCount || 0
+  const totalCoin = data.totalCoinCount || 0
+  const totalFavorite = data.totalFavoriteCount || 0
+  const totalDanmaku = data.totalDanmakuCount || 0
+  const totalShare = data.totalShareCount || 0
+  const totalReply = data.totalReplyCount || 0
+  
+  const getPercentage = (value) => {
+    return Math.round((value / totalView) * 10000) / 100
+  }
+  
+  const option = {
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}: {c}%',
+      backgroundColor: 'rgba(10, 22, 40, 0.95)',
+      borderColor: '#00f7ff',
+      textStyle: { color: '#fff' }
+    },
+    legend: {
+      type: 'scroll',
+      orient: 'vertical',
+      right: 10,
+      top: 'center',
+      textStyle: { color: 'rgba(255, 255, 255, 0.7)', fontSize: 9 },
+      pageTextStyle: { color: 'rgba(255, 255, 255, 0.7)' },
+      selectedMode: 'multiple'
+    },
+    series: [{
+      type: 'funnel',
+      left: '10%',
+      top: '10%',
+      bottom: '10%',
+      width: '60%',
+      min: 0,
+      max: 100,
+      minSize: '20%',
+      maxSize: '100%',
+      sort: 'descending',
+      gap: 3,
+      label: {
+        show: true,
+        position: 'inside',
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: 'bold',
+        formatter: '{b}: {c}%'
+      },
+      labelLine: { show: false },
+      itemStyle: { 
+        borderWidth: 0,
+        shadowColor: 'rgba(0, 247, 255, 0.3)',
+        shadowBlur: 10
+      },
+      emphasis: {
+        label: { fontSize: 12 },
+        itemStyle: {
+          shadowColor: 'rgba(0, 247, 255, 0.6)',
+          shadowBlur: 20
+        }
+      },
+      data: [
+        { value: 100, name: '播放量', itemStyle: { color: '#00f7ff' } },
+        { value: getPercentage(totalDanmaku), name: '弹幕量', itemStyle: { color: '#10b981' } },
+        { value: getPercentage(totalLike), name: '点赞数', itemStyle: { color: '#f59e0b' } },
+        { value: getPercentage(totalCoin), name: '投币数', itemStyle: { color: '#ef4444' } },
+        { value: getPercentage(totalFavorite), name: '收藏数', itemStyle: { color: '#8b5cf6' } },
+        { value: getPercentage(totalShare), name: '分享数', itemStyle: { color: '#06b6d4' } },
+        { value: getPercentage(totalReply), name: '评论数', itemStyle: { color: '#ec4899' } }
+      ],
+      animationEasing: 'elasticOut'
+    }]
+  }
+  
+  chartInstances.funnel.setOption(option)
+}
+
 const handleResize = () => {
   const canvas = particleCanvas.value
   if (canvas) {
@@ -1212,7 +1331,7 @@ onUnmounted(() => {
 }
 
 .screen-header h1 {
-  font-size: clamp(18px, 2.5vw, 32px);
+  font-size: clamp(18px, 2.5vw, 28px);
   font-weight: 800;
   background: linear-gradient(90deg, #00f7ff, #8b5cf6, #10b981, #00f7ff);
   background-size: 300% auto;
@@ -1487,6 +1606,47 @@ onUnmounted(() => {
   box-shadow: 0 0 15px rgba(0, 247, 255, 0.4);
 }
 
+.category-select {
+  margin-left: auto;
+  width: 100px;
+  position: relative;
+  z-index: 100;
+}
+
+.category-select :deep(.el-input__wrapper) {
+  background: rgba(0, 247, 255, 0.1);
+  border-color: rgba(0, 247, 255, 0.3);
+  box-shadow: none;
+}
+
+.category-select :deep(.el-input__inner) {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+}
+
+.category-select :deep(.el-input__suffix) {
+  color: rgba(0, 247, 255, 0.7);
+}
+
+.category-select :deep(.el-select__popper) {
+  z-index: 9999 !important;
+  background: rgba(10, 22, 40, 0.98);
+  border: 1px solid rgba(0, 247, 255, 0.3);
+}
+
+.category-select :deep(.el-select-dropdown__item) {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.category-select :deep(.el-select-dropdown__item:hover) {
+  background: rgba(0, 247, 255, 0.2);
+}
+
+.category-select :deep(.el-select-dropdown__item.selected) {
+  color: #00f7ff;
+  background: rgba(0, 247, 255, 0.15);
+}
+
 .chart-container {
   flex: 1;
   min-height: clamp(90px, 14vh, 170px);
@@ -1537,6 +1697,24 @@ onUnmounted(() => {
 
 .word-cloud {
   min-height: clamp(220px, 25vh, 380px);
+}
+
+.tag-cloud-card {
+  overflow: visible !important;
+}
+
+.tag-cloud-card .card-title {
+  z-index: 100;
+  position: relative;
+}
+
+.interaction-card {
+  overflow: visible !important;
+}
+
+.interaction-card .card-title {
+  z-index: 100;
+  position: relative;
 }
 
 .stats-grid {

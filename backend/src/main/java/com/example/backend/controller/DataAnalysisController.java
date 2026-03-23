@@ -14,17 +14,22 @@ public class DataAnalysisController {
     private DataSource dataSource;
 
     @GetMapping("/overview")
-    public Map<String, Object> getOverview() {
+    public Map<String, Object> getOverview(@RequestParam(required = false) String category) {
         Map<String, Object> result = new HashMap<>();
         try (Connection conn = dataSource.getConnection()) {
-            long totalVideos = getCount(conn, "SELECT COUNT(*) FROM bilibili_video");
-            long totalViewCount = getSum(conn, "SELECT COALESCE(SUM(view_count), 0) FROM bilibili_video");
-            long totalLikeCount = getSum(conn, "SELECT COALESCE(SUM(like_count), 0) FROM bilibili_video");
-            long totalCoinCount = getSum(conn, "SELECT COALESCE(SUM(coin_count), 0) FROM bilibili_video");
-            long totalFavoriteCount = getSum(conn, "SELECT COALESCE(SUM(favorite_count), 0) FROM bilibili_video");
-            long totalDanmakuCount = getSum(conn, "SELECT COALESCE(SUM(danmaku_count), 0) FROM bilibili_video");
-            long totalShareCount = getSum(conn, "SELECT COALESCE(SUM(share_count), 0) FROM bilibili_video");
-            long totalReplyCount = getSum(conn, "SELECT COALESCE(SUM(reply_count), 0) FROM bilibili_video");
+            String whereClause = "";
+            if (category != null && !category.isEmpty() && !category.equals("全部")) {
+                whereClause = " WHERE category = '" + category.replace("'", "''") + "'";
+            }
+            
+            long totalVideos = getCount(conn, "SELECT COUNT(*) FROM bilibili_video" + whereClause);
+            long totalViewCount = getSum(conn, "SELECT COALESCE(SUM(view_count), 0) FROM bilibili_video" + whereClause);
+            long totalLikeCount = getSum(conn, "SELECT COALESCE(SUM(like_count), 0) FROM bilibili_video" + whereClause);
+            long totalCoinCount = getSum(conn, "SELECT COALESCE(SUM(coin_count), 0) FROM bilibili_video" + whereClause);
+            long totalFavoriteCount = getSum(conn, "SELECT COALESCE(SUM(favorite_count), 0) FROM bilibili_video" + whereClause);
+            long totalDanmakuCount = getSum(conn, "SELECT COALESCE(SUM(danmaku_count), 0) FROM bilibili_video" + whereClause);
+            long totalShareCount = getSum(conn, "SELECT COALESCE(SUM(share_count), 0) FROM bilibili_video" + whereClause);
+            long totalReplyCount = getSum(conn, "SELECT COALESCE(SUM(reply_count), 0) FROM bilibili_video" + whereClause);
             
             result.put("totalVideos", totalVideos);
             result.put("totalViewCount", totalViewCount);
@@ -105,13 +110,21 @@ public class DataAnalysisController {
     }
 
     @GetMapping("/tag-cloud")
-    public Map<String, Object> getTagCloud() {
+    public Map<String, Object> getTagCloud(@RequestParam(required = false) String category) {
         Map<String, Object> result = new HashMap<>();
         try (Connection conn = dataSource.getConnection()) {
             Map<String, Integer> tagCount = new HashMap<>();
-            String sql = "SELECT tags FROM bilibili_video WHERE tags IS NOT NULL AND tags != ''";
-            try (PreparedStatement ps = conn.prepareStatement(sql);
-                 ResultSet rs = ps.executeQuery()) {
+            String sql;
+            PreparedStatement ps;
+            if (category != null && !category.isEmpty() && !category.equals("全部")) {
+                sql = "SELECT tags FROM bilibili_video WHERE tags IS NOT NULL AND tags != '' AND category = ?";
+                ps = conn.prepareStatement(sql);
+                ps.setString(1, category);
+            } else {
+                sql = "SELECT tags FROM bilibili_video WHERE tags IS NOT NULL AND tags != ''";
+                ps = conn.prepareStatement(sql);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     String tagsStr = rs.getString("tags");
                     if (tagsStr != null && !tagsStr.isEmpty()) {
@@ -128,6 +141,7 @@ public class DataAnalysisController {
                     }
                 }
             }
+            ps.close();
             List<Map<String, Object>> data = new ArrayList<>();
             for (Map.Entry<String, Integer> entry : tagCount.entrySet()) {
                 if (entry.getValue() >= 2) {
