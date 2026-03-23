@@ -38,7 +38,9 @@ public class VideoController {
     public Map<String, Object> getVideoList(@RequestParam(defaultValue = "1") Integer pageNum,
                                            @RequestParam(defaultValue = "10") Integer pageSize,
                                            @RequestParam(required = false) String keyword,
-                                           @RequestParam(required = false) Long categoryId) {
+                                           @RequestParam(required = false) Long categoryId,
+                                           @RequestParam(required = false) String sortBy,
+                                           @RequestParam(required = false) String sortOrder) {
         Map<String, Object> response = new HashMap<>();
         
         Page<Video> page = new Page<>(pageNum, pageSize);
@@ -49,7 +51,16 @@ public class VideoController {
         if (categoryId != null) {
             queryWrapper.eq("category_id", categoryId);
         }
-        queryWrapper.orderByDesc("create_time");
+        
+        if ("viewCount".equals(sortBy)) {
+            if ("desc".equals(sortOrder)) {
+                queryWrapper.orderByDesc("view_count");
+            } else {
+                queryWrapper.orderByAsc("view_count");
+            }
+        } else {
+            queryWrapper.orderByDesc("create_time");
+        }
         
         IPage<Video> videoPage = videoMapper.selectPage(page, queryWrapper);
         

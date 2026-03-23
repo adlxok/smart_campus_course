@@ -19,7 +19,7 @@
           @click="currentMenu = 'videos'"
         >
           <span class="icon">🎬</span>
-          <span>视频管理</span>
+          <span>B站视频管理</span>
         </div>
         <div 
           class="nav-item" 
@@ -59,7 +59,7 @@
           @click="goToAnalysis"
         >
           <span class="icon">📊</span>
-          <span>数据分析</span>
+          <span>B站视频数据分析</span>
         </div>
         <div 
           class="nav-item" 
@@ -111,10 +111,10 @@
               </div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">👍</div>
+              <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">�</div>
               <div class="stat-info">
-                <h3>总点赞数</h3>
-                <p class="stat-number">{{ formatNumber(stats.totalLikes) }}</p>
+                <h3>用户总数</h3>
+                <p class="stat-number">{{ stats.userCount || 0 }}</p>
               </div>
             </div>
             <div class="stat-card">

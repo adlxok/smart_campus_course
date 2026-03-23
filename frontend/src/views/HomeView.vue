@@ -22,6 +22,7 @@
         <div class="category-nav">
           <el-tabs v-model="activeCategory" class="category-tabs" @tab-change="handleCategoryChange">
             <el-tab-pane label="全部" :name="0"></el-tab-pane>
+            <el-tab-pane label="推荐" :name="-1"></el-tab-pane>
             <el-tab-pane 
               v-for="cat in categories" 
               :key="cat.id" 
@@ -218,7 +219,11 @@ onMounted(async () => {
 })
 
 const handleCategoryChange = () => {
-  loadVideos()
+  if (activeCategory.value === -1) {
+    videos.value = []
+  } else {
+    loadVideos()
+  }
 }
 
 onBeforeUnmount(() => {
@@ -232,7 +237,9 @@ const loadVideos = async (keyword: string = '') => {
     if (keyword) {
       url += `&keyword=${encodeURIComponent(keyword)}`
     }
-    if (activeCategory.value && activeCategory.value !== 0) {
+    if (activeCategory.value === -1) {
+      url += '&sortBy=viewCount&sortOrder=desc'
+    } else if (activeCategory.value && activeCategory.value !== 0) {
       url += `&categoryId=${activeCategory.value}`
     }
     const response = await fetch(url)

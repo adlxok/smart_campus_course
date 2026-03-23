@@ -6,6 +6,7 @@ import com.example.backend.entity.BilibiliVideo;
 import com.example.backend.entity.User;
 import com.example.backend.mapper.UserMapper;
 import com.example.backend.service.BilibiliVideoService;
+import com.example.backend.service.VideoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,6 +20,9 @@ public class AdminController {
     
     @Autowired
     private BilibiliVideoService bilibiliVideoService;
+    
+    @Autowired
+    private VideoService videoService;
     
     @Autowired
     private UserMapper userMapper;
@@ -85,7 +89,7 @@ public class AdminController {
     public Map<String, Object> getStatistics() {
         Map<String, Object> response = new HashMap<>();
         try {
-            Map<String, Object> stats = bilibiliVideoService.getStatistics();
+            Map<String, Object> stats = videoService.getStatistics();
             response.put("success", true);
             response.put("data", stats);
         } catch (Exception e) {
