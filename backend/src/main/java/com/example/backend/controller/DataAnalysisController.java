@@ -81,9 +81,12 @@ public class DataAnalysisController {
             if ("like".equals(sortBy)) orderColumn = "like_count";
             else if ("coin".equals(sortBy)) orderColumn = "coin_count";
             else if ("favorite".equals(sortBy)) orderColumn = "favorite_count";
+            else if ("danmaku".equals(sortBy)) orderColumn = "danmaku_count";
+            else if ("share".equals(sortBy)) orderColumn = "share_count";
+            else if ("reply".equals(sortBy)) orderColumn = "reply_count";
             
             String sql = String.format(
-                "SELECT bvid, title, view_count, like_count, coin_count, favorite_count, danmaku_count, category " +
+                "SELECT bvid, title, view_count, like_count, coin_count, favorite_count, danmaku_count, share_count, reply_count, category " +
                 "FROM bilibili_video ORDER BY %s DESC LIMIT 20", orderColumn);
             try (PreparedStatement ps = conn.prepareStatement(sql);
                  ResultSet rs = ps.executeQuery()) {
@@ -96,6 +99,8 @@ public class DataAnalysisController {
                     item.put("coinCount", rs.getLong("coin_count"));
                     item.put("favoriteCount", rs.getLong("favorite_count"));
                     item.put("danmakuCount", rs.getLong("danmaku_count"));
+                    item.put("shareCount", rs.getLong("share_count"));
+                    item.put("replyCount", rs.getLong("reply_count"));
                     item.put("category", rs.getString("category"));
                     data.add(item);
                 }

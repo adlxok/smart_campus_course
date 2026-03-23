@@ -157,6 +157,10 @@
                 <el-radio-button label="view">播放量</el-radio-button>
                 <el-radio-button label="like">点赞</el-radio-button>
                 <el-radio-button label="coin">投币</el-radio-button>
+                <el-radio-button label="danmaku">弹幕</el-radio-button>
+                <el-radio-button label="favorite">收藏</el-radio-button>
+                <el-radio-button label="share">分享</el-radio-button>
+                <el-radio-button label="reply">评论</el-radio-button>
               </el-radio-group>
             </div>
             <div class="top-videos-list">
@@ -165,10 +169,9 @@
                   <span v-if="index < 3" class="medal">{{ ['🥇', '🥈', '🥉'][index] }}</span>
                   <span v-else>{{ index + 1 }}</span>
                 </span>
-                <span class="title">{{ video.title }}</span>
+                <a :href="'https://www.bilibili.com/video/' + video.bvid" target="_blank" class="title">{{ video.title }}</a>
                 <div class="video-stats">
-                  <span class="stat-item">👁️ {{ formatNumber(video.viewCount) }}</span>
-                  <span class="stat-item">👍 {{ formatNumber(video.likeCount) }}</span>
+                  <span class="stat-item">{{ topSortConfig[topSortBy].icon }} {{ formatNumber(video[topSortConfig[topSortBy].key]) }}</span>
                 </div>
               </div>
             </div>
@@ -258,6 +261,15 @@ const overview = ref({
 
 const topVideos = ref([])
 const topSortBy = ref('view')
+const topSortConfig = {
+  view: { icon: '👁️', key: 'viewCount', label: '播放量' },
+  like: { icon: '👍', key: 'likeCount', label: '点赞' },
+  coin: { icon: '🪙', key: 'coinCount', label: '投币' },
+  danmaku: { icon: '💬', key: 'danmakuCount', label: '弹幕' },
+  favorite: { icon: '⭐', key: 'favoriteCount', label: '收藏' },
+  share: { icon: '🔄', key: 'shareCount', label: '分享' },
+  reply: { icon: '📝', key: 'replyCount', label: '评论' }
+}
 const tagCloud = ref([])
 const categories = ref([])
 const selectedCategory = ref('全部')
@@ -1993,11 +2005,19 @@ onUnmounted(() => {
   color: rgba(255, 255, 255, 0.9);
   position: relative;
   z-index: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.video-item .title:hover {
+  color: #00f7ff;
 }
 
 .video-stats {
   display: flex;
-  gap: clamp(10px, 1.2vw, 15px);
+  flex-wrap: wrap;
+  gap: clamp(4px, 0.5vw, 8px);
   margin-left: clamp(10px, 1.2vw, 15px);
   flex-shrink: 0;
   position: relative;
@@ -2005,7 +2025,7 @@ onUnmounted(() => {
 }
 
 .video-item .stat-item {
-  font-size: clamp(10px, 0.9vw, 12px);
+  font-size: clamp(9px, 0.8vw, 11px);
   color: rgba(255, 255, 255, 0.5);
 }
 
