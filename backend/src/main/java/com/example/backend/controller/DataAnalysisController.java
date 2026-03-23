@@ -178,13 +178,13 @@ public class DataAnalysisController {
             }
             
             String sql = "SELECT " +
-                "AVG(like_count) as avgLike, " +
-                "AVG(coin_count) as avgCoin, " +
-                "AVG(favorite_count) as avgFavorite, " +
-                "AVG(danmaku_count) as avgDanmaku, " +
-                "AVG(share_count) as avgShare, " +
-                "AVG(reply_count) as avgReply, " +
-                "AVG(view_count) as avgView, " +
+                "SUM(like_count) as totalLike, " +
+                "SUM(coin_count) as totalCoin, " +
+                "SUM(favorite_count) as totalFavorite, " +
+                "SUM(danmaku_count) as totalDanmaku, " +
+                "SUM(share_count) as totalShare, " +
+                "SUM(reply_count) as totalReply, " +
+                "SUM(view_count) as totalView, " +
                 "MAX(like_count) as maxLike, " +
                 "MAX(coin_count) as maxCoin, " +
                 "MAX(favorite_count) as maxFavorite " +
@@ -193,13 +193,13 @@ public class DataAnalysisController {
                  ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     Map<String, Object> item = new HashMap<>();
-                    item.put("avgLike", rs.getDouble("avgLike"));
-                    item.put("avgCoin", rs.getDouble("avgCoin"));
-                    item.put("avgFavorite", rs.getDouble("avgFavorite"));
-                    item.put("avgDanmaku", rs.getDouble("avgDanmaku"));
-                    item.put("avgShare", rs.getDouble("avgShare"));
-                    item.put("avgReply", rs.getDouble("avgReply"));
-                    item.put("avgView", rs.getDouble("avgView"));
+                    item.put("totalLike", rs.getLong("totalLike"));
+                    item.put("totalCoin", rs.getLong("totalCoin"));
+                    item.put("totalFavorite", rs.getLong("totalFavorite"));
+                    item.put("totalDanmaku", rs.getLong("totalDanmaku"));
+                    item.put("totalShare", rs.getLong("totalShare"));
+                    item.put("totalReply", rs.getLong("totalReply"));
+                    item.put("totalView", rs.getLong("totalView"));
                     item.put("maxLike", rs.getLong("maxLike"));
                     item.put("maxCoin", rs.getLong("maxCoin"));
                     item.put("maxFavorite", rs.getLong("maxFavorite"));

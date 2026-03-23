@@ -796,15 +796,39 @@ const renderInteractionChart = (data) => {
     { from: '#ec4899', to: '#f472b6' }
   ]
   
+  const formatValue = (value) => {
+    if (value >= 100000000) {
+      return (value / 100000000).toFixed(2) + '亿'
+    } else if (value >= 10000) {
+      return (value / 10000).toFixed(1) + '万'
+    } else {
+      return value
+    }
+  }
+  
+  const formatAxis = (value) => {
+    if (value >= 100000000) {
+      return (value / 100000000).toFixed(0) + '亿'
+    } else if (value >= 10000) {
+      return (value / 10000).toFixed(0) + '万'
+    } else {
+      return value
+    }
+  }
+  
   const option = {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
       backgroundColor: 'rgba(10, 22, 40, 0.95)',
       borderColor: '#00f7ff',
-      textStyle: { color: '#fff' }
+      textStyle: { color: '#fff' },
+      formatter: (params) => {
+        const item = params[0]
+        return `${item.name}<br/>${formatValue(item.value)}`
+      }
     },
-    grid: { left: '8%', right: '5%', bottom: '10%', top: '15%' },
+    grid: { left: '10%', right: '5%', bottom: '10%', top: '15%' },
     xAxis: {
       type: 'category',
       data: ['点赞', '投币', '收藏', '弹幕', '分享', '评论'],
@@ -813,21 +837,31 @@ const renderInteractionChart = (data) => {
     },
     yAxis: {
       type: 'value',
-      axisLabel: { color: 'rgba(255, 255, 255, 0.5)', fontSize: 10 },
+      axisLabel: { 
+        color: 'rgba(255, 255, 255, 0.5)', 
+        fontSize: 10,
+        formatter: formatAxis
+      },
       splitLine: { lineStyle: { color: 'rgba(0, 247, 255, 0.1)' } }
     },
     series: [{
       data: [
-        { value: Math.round(data.avgLike || 0), itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors[0].from }, { offset: 1, color: colors[0].to }]), shadowColor: colors[0].from, shadowBlur: 10 } },
-        { value: Math.round(data.avgCoin || 0), itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors[1].from }, { offset: 1, color: colors[1].to }]), shadowColor: colors[1].from, shadowBlur: 10 } },
-        { value: Math.round(data.avgFavorite || 0), itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors[2].from }, { offset: 1, color: colors[2].to }]), shadowColor: colors[2].from, shadowBlur: 10 } },
-        { value: Math.round(data.avgDanmaku || 0), itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors[3].from }, { offset: 1, color: colors[3].to }]), shadowColor: colors[3].from, shadowBlur: 10 } },
-        { value: Math.round(data.avgShare || 0), itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors[4].from }, { offset: 1, color: colors[4].to }]), shadowColor: colors[4].from, shadowBlur: 10 } },
-        { value: Math.round(data.avgReply || 0), itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors[5].from }, { offset: 1, color: colors[5].to }]), shadowColor: colors[5].from, shadowBlur: 10 } }
+        { value: data.totalLike || 0, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors[0].from }, { offset: 1, color: colors[0].to }]), shadowColor: colors[0].from, shadowBlur: 10 } },
+        { value: data.totalCoin || 0, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors[1].from }, { offset: 1, color: colors[1].to }]), shadowColor: colors[1].from, shadowBlur: 10 } },
+        { value: data.totalFavorite || 0, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors[2].from }, { offset: 1, color: colors[2].to }]), shadowColor: colors[2].from, shadowBlur: 10 } },
+        { value: data.totalDanmaku || 0, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors[3].from }, { offset: 1, color: colors[3].to }]), shadowColor: colors[3].from, shadowBlur: 10 } },
+        { value: data.totalShare || 0, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors[4].from }, { offset: 1, color: colors[4].to }]), shadowColor: colors[4].from, shadowBlur: 10 } },
+        { value: data.totalReply || 0, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors[5].from }, { offset: 1, color: colors[5].to }]), shadowColor: colors[5].from, shadowBlur: 10 } }
       ],
       type: 'bar',
       barWidth: '50%',
-      label: { show: true, position: 'top', color: '#fff', fontSize: 9 },
+      label: { 
+        show: true, 
+        position: 'top', 
+        color: '#fff', 
+        fontSize: 8,
+        formatter: (params) => formatValue(params.value)
+      },
       itemStyle: { borderRadius: [8, 8, 0, 0] },
       animationEasing: 'elasticOut',
       animationDelay: function (idx) {
