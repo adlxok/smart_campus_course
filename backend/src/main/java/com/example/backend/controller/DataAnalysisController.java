@@ -168,10 +168,15 @@ public class DataAnalysisController {
     }
 
     @GetMapping("/interaction-stats")
-    public Map<String, Object> getInteractionStats() {
+    public Map<String, Object> getInteractionStats(@RequestParam(required = false) String category) {
         Map<String, Object> result = new HashMap<>();
         try (Connection conn = dataSource.getConnection()) {
             List<Map<String, Object>> data = new ArrayList<>();
+            String whereClause = "";
+            if (category != null && !category.isEmpty() && !category.equals("全部")) {
+                whereClause = " WHERE category = '" + category.replace("'", "''") + "'";
+            }
+            
             String sql = "SELECT " +
                 "AVG(like_count) as avgLike, " +
                 "AVG(coin_count) as avgCoin, " +
@@ -179,10 +184,11 @@ public class DataAnalysisController {
                 "AVG(danmaku_count) as avgDanmaku, " +
                 "AVG(share_count) as avgShare, " +
                 "AVG(reply_count) as avgReply, " +
+                "AVG(view_count) as avgView, " +
                 "MAX(like_count) as maxLike, " +
                 "MAX(coin_count) as maxCoin, " +
                 "MAX(favorite_count) as maxFavorite " +
-                "FROM bilibili_video";
+                "FROM bilibili_video" + whereClause;
             try (PreparedStatement ps = conn.prepareStatement(sql);
                  ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -193,9 +199,49 @@ public class DataAnalysisController {
                     item.put("avgDanmaku", rs.getDouble("avgDanmaku"));
                     item.put("avgShare", rs.getDouble("avgShare"));
                     item.put("avgReply", rs.getDouble("avgReply"));
+                    item.put("avgView", rs.getDouble("avgView"));
                     item.put("maxLike", rs.getLong("maxLike"));
                     item.put("maxCoin", rs.getLong("maxCoin"));
                     item.put("maxFavorite", rs.getLong("maxFavorite"));
+                    data.add(item);
+                }
+            }
+            result.put("data", data);
+            result.put("success", true);
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("error", e.getMessage());
+        }
+        return result;
+    }
+
+    @GetMapping("/radar-by-category")
+    public Map<String, Object> getRadarByCategory() {
+        Map<String, Object> result = new HashMap<>();
+        try (Connection conn = dataSource.getConnection()) {
+            List<Map<String, Object>> data = new ArrayList<>();
+            String sql = "SELECT category, " +
+                "SUM(like_count) as totalLike, " +
+                "SUM(coin_count) as totalCoin, " +
+                "SUM(favorite_count) as totalFavorite, " +
+                "SUM(danmaku_count) as totalDanmaku, " +
+                "SUM(share_count) as totalShare, " +
+                "SUM(reply_count) as totalReply " +
+                "FROM bilibili_video " +
+                "WHERE category IS NOT NULL AND category != '' " +
+                "GROUP BY category " +
+                "ORDER BY COUNT(*) DESC LIMIT 10";
+            try (PreparedStatement ps = conn.prepareStatement(sql);
+                 ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("category", rs.getString("category"));
+                    item.put("totalLike", rs.getLong("totalLike"));
+                    item.put("totalCoin", rs.getLong("totalCoin"));
+                    item.put("totalFavorite", rs.getLong("totalFavorite"));
+                    item.put("totalDanmaku", rs.getLong("totalDanmaku"));
+                    item.put("totalShare", rs.getLong("totalShare"));
+                    item.put("totalReply", rs.getLong("totalReply"));
                     data.add(item);
                 }
             }
@@ -244,26 +290,37 @@ public class DataAnalysisController {
     }
 
     @GetMapping("/category-likes")
-    public Map<String, Object> getCategoryLikes() {
+    public Map<String, Object> getCategoryLikes(@RequestParam(defaultValue = "like") String sortBy) {
         Map<String, Object> result = new HashMap<>();
         try (Connection conn = dataSource.getConnection()) {
             List<Map<String, Object>> data = new ArrayList<>();
-            String sql = "SELECT COALESCE(category, '未分类') as category, " +
-                        "COALESCE(SUM(like_count), 0) as totalLikes " +
-                        "FROM bilibili_video " +
-                        "GROUP BY category " +
-                        "ORDER BY totalLikes DESC " +
-                        "LIMIT 15";
+            String sumColumn = "like_count";
+            String resultKey = "totalLikes";
+            if ("view".equals(sortBy)) { sumColumn = "view_count"; resultKey = "totalViews"; }
+            else if ("coin".equals(sortBy)) { sumColumn = "coin_count"; resultKey = "totalCoins"; }
+            else if ("favorite".equals(sortBy)) { sumColumn = "favorite_count"; resultKey = "totalFavorites"; }
+            else if ("share".equals(sortBy)) { sumColumn = "share_count"; resultKey = "totalShares"; }
+            else if ("reply".equals(sortBy)) { sumColumn = "reply_count"; resultKey = "totalReplies"; }
+            else if ("danmaku".equals(sortBy)) { sumColumn = "danmaku_count"; resultKey = "totalDanmakus"; }
+            
+            String sql = String.format(
+                "SELECT COALESCE(category, '未分类') as category, " +
+                "COALESCE(SUM(%s), 0) as %s " +
+                "FROM bilibili_video " +
+                "GROUP BY category " +
+                "ORDER BY %s DESC " +
+                "LIMIT 15", sumColumn, resultKey, resultKey);
             try (PreparedStatement ps = conn.prepareStatement(sql);
                  ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Map<String, Object> item = new HashMap<>();
                     item.put("category", rs.getString("category"));
-                    item.put("totalLikes", rs.getLong("totalLikes"));
+                    item.put(resultKey, rs.getLong(resultKey));
                     data.add(item);
                 }
             }
             result.put("data", data);
+            result.put("dataKey", resultKey);
             result.put("success", true);
         } catch (Exception e) {
             result.put("success", false);

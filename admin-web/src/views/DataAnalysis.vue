@@ -89,7 +89,7 @@
             <div class="title-line"></div>
             <span class="title-text">
               <span class="title-icon">🎯</span>
-              视频质量评分
+              分类评分
             </span>
           </div>
           <div ref="radarChart" class="chart-container"></div>
@@ -120,7 +120,7 @@
         
         <div class="center-charts">
           <div class="center-top-row">
-            <div class="chart-card">
+            <div class="chart-card interaction-stats-card">
               <div class="card-header-decoration"></div>
               <div class="card-title">
                 <div class="title-line"></div>
@@ -128,11 +128,14 @@
                   <span class="title-icon">📊</span>
                   互动数据对比
                 </span>
+                <el-select v-model="interactionStatsCategory" size="small" @change="fetchInteractionStats" class="category-select" placeholder="选择分类" :teleported="false">
+                  <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
+                </el-select>
               </div>
               <div ref="interactionChart" class="chart-container"></div>
             </div>
             
-            <div class="chart-card">
+            <div class="chart-card category-likes-card">
               <div class="card-header-decoration"></div>
               <div class="card-title">
                 <div class="title-line"></div>
@@ -140,6 +143,15 @@
                   <span class="title-icon">🏅</span>
                   分类互动数据对比
                 </span>
+                <el-select v-model="categoryLikesSortBy" size="small" @change="fetchCategoryLikes" class="category-select" placeholder="选择类型" :teleported="false">
+                  <el-option label="播放量" value="view" />
+                  <el-option label="点赞" value="like" />
+                  <el-option label="投币" value="coin" />
+                  <el-option label="弹幕" value="danmaku" />
+                  <el-option label="收藏" value="favorite" />
+                  <el-option label="分享" value="share" />
+                  <el-option label="评论" value="reply" />
+                </el-select>
               </div>
               <div ref="categoryLikesChart" class="chart-container"></div>
             </div>
@@ -274,6 +286,17 @@ const tagCloud = ref([])
 const categories = ref([])
 const selectedCategory = ref('全部')
 const interactionCategory = ref('全部')
+const interactionStatsCategory = ref('全部')
+const categoryLikesSortBy = ref('like')
+const categoryLikesConfig = {
+  view: { key: 'totalViews', label: '播放量' },
+  like: { key: 'totalLikes', label: '点赞' },
+  coin: { key: 'totalCoins', label: '投币' },
+  danmaku: { key: 'totalDanmakus', label: '弹幕' },
+  favorite: { key: 'totalFavorites', label: '收藏' },
+  share: { key: 'totalShares', label: '分享' },
+  reply: { key: 'totalReplies', label: '评论' }
+}
 const dataCompleteness = ref({
   totalVideos: 0,
   duplicateBvids: 0,
@@ -516,11 +539,22 @@ const fetchDailyTrend = async () => {
 
 const fetchInteractionStats = async () => {
   try {
-    const res = await api.get('/admin/analysis/interaction-stats')
+    const params = interactionStatsCategory.value !== '全部' ? { category: interactionStatsCategory.value } : {}
+    const res = await api.get('/admin/analysis/interaction-stats', { params })
     if (res.data.success && res.data.data[0]) {
       renderInteractionChart(res.data.data[0])
-      renderRadarChart(res.data.data[0])
       renderGaugeChart(res.data.data[0])
+    }
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+const fetchRadarByCategory = async () => {
+  try {
+    const res = await api.get('/admin/analysis/radar-by-category')
+    if (res.data.success) {
+      renderRadarChart(res.data.data)
     }
   } catch (e) {
     console.error(e)
@@ -542,9 +576,11 @@ const fetchTagCloud = async (category = null) => {
 
 const fetchCategoryLikes = async () => {
   try {
-    const res = await api.get('/admin/analysis/category-likes')
+    const params = { sortBy: categoryLikesSortBy.value }
+    const res = await api.get('/admin/analysis/category-likes', { params })
     if (res.data.success) {
-      renderCategoryLikesChart(res.data.data)
+      const dataKey = res.data.dataKey || 'totalLikes'
+      renderCategoryLikesChart(res.data.data, dataKey)
     }
   } catch (e) {
     console.error(e)
@@ -563,7 +599,7 @@ const fetchDataCompleteness = async () => {
   }
 }
 
-const renderCategoryLikesChart = (data) => {
+const renderCategoryLikesChart = (data, dataKey = 'totalLikes') => {
   if (!chartInstances.categoryLikes) {
     chartInstances.categoryLikes = echarts.init(categoryLikesChart.value)
   }
@@ -598,7 +634,7 @@ const renderCategoryLikesChart = (data) => {
     series: [{
       type: 'bar',
       data: data.map((item, index) => ({
-        value: item.totalLikes,
+        value: item[dataKey] || 0,
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
             { offset: 0, color: colors[index % colors.length] },
@@ -701,7 +737,7 @@ const renderTrendChart = (data) => {
       borderColor: '#00f7ff',
       textStyle: { color: '#fff' }
     },
-    grid: { left: '8%', right: '5%', bottom: '15%', top: '10%' },
+    grid: { left: '12%', right: '5%', bottom: '22%', top: '8%' },
     xAxis: {
       type: 'category',
       boundaryGap: false,
@@ -719,25 +755,25 @@ const renderTrendChart = (data) => {
       type: 'line',
       smooth: true,
       symbol: 'circle',
-      symbolSize: 8,
+      symbolSize: 4,
       areaStyle: {
         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: 'rgba(0, 247, 255, 0.5)' },
-          { offset: 1, color: 'rgba(0, 247, 255, 0.05)' }
+          { offset: 0, color: 'rgba(0, 247, 255, 0.4)' },
+          { offset: 1, color: 'rgba(0, 247, 255, 0.02)' }
         ])
       },
       lineStyle: { 
         color: '#00f7ff', 
-        width: 3, 
+        width: 2, 
         shadowColor: '#00f7ff', 
-        shadowBlur: 15 
+        shadowBlur: 10 
       },
       itemStyle: { 
         color: '#00f7ff', 
         borderColor: '#fff', 
-        borderWidth: 2,
+        borderWidth: 1,
         shadowColor: '#00f7ff',
-        shadowBlur: 10
+        shadowBlur: 6
       },
       animationEasing: 'elasticOut'
     }]
@@ -772,12 +808,12 @@ const renderInteractionChart = (data) => {
     xAxis: {
       type: 'category',
       data: ['点赞', '投币', '收藏', '弹幕', '分享', '评论'],
-      axisLabel: { color: 'rgba(255, 255, 255, 0.7)', fontSize: 11 },
+      axisLabel: { color: 'rgba(255, 255, 255, 0.7)', fontSize: 10 },
       axisLine: { lineStyle: { color: 'rgba(0, 247, 255, 0.3)' } }
     },
     yAxis: {
       type: 'value',
-      axisLabel: { color: 'rgba(255, 255, 255, 0.5)' },
+      axisLabel: { color: 'rgba(255, 255, 255, 0.5)', fontSize: 10 },
       splitLine: { lineStyle: { color: 'rgba(0, 247, 255, 0.1)' } }
     },
     series: [{
@@ -791,7 +827,7 @@ const renderInteractionChart = (data) => {
       ],
       type: 'bar',
       barWidth: '50%',
-      label: { show: true, position: 'top', color: '#fff', fontSize: 10 },
+      label: { show: true, position: 'top', color: '#fff', fontSize: 9 },
       itemStyle: { borderRadius: [8, 8, 0, 0] },
       animationEasing: 'elasticOut',
       animationDelay: function (idx) {
@@ -803,15 +839,68 @@ const renderInteractionChart = (data) => {
   chartInstances.interaction.setOption(option)
 }
 
-const renderRadarChart = (data) => {
+const renderRadarChart = (dataList) => {
   if (!chartInstances.radar) {
     chartInstances.radar = echarts.init(radarChart.value)
   }
   
-  const maxVal = Math.max(data.avgLike || 1, data.avgCoin || 1, data.avgFavorite || 1, data.avgDanmaku || 1, data.avgShare || 1, data.avgReply || 1)
+  const colors = [
+    '#00f7ff', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', 
+    '#06b6d4', '#ec4899', '#6366f1', '#3b82f6', '#14b8a6'
+  ]
+  
+  const hexToRgba = (hex, alpha) => {
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`
+  }
+  
+  const getMaxVal = (item) => {
+    return Math.max(1, item.totalLike || 1, item.totalCoin || 1, item.totalFavorite || 1, item.totalDanmaku || 1, item.totalShare || 1, item.totalReply || 1)
+  }
+  
+  const firstItem = dataList[0]
+  let maxVal = firstItem ? getMaxVal(firstItem) : 1
+  
+  const seriesData = dataList.map((d, index) => {
+    const color = colors[index % colors.length]
+    return {
+      value: [d.totalLike || 0, d.totalCoin || 0, d.totalFavorite || 0, d.totalDanmaku || 0, d.totalShare || 0, d.totalReply || 0],
+      name: d.category || '未知',
+      areaStyle: { 
+        color: new echarts.graphic.RadialGradient(0.5, 0.5, 1, [
+          { offset: 0, color: hexToRgba(color, 0.4) },
+          { offset: 1, color: hexToRgba(color, 0.1) }
+        ])
+      },
+      lineStyle: { color: color, width: 2, shadowColor: color, shadowBlur: 8 },
+      itemStyle: { color: color, borderColor: '#fff', borderWidth: 1 }
+    }
+  })
+  
+  const selectedMap = {}
+  dataList.forEach((d, index) => {
+    selectedMap[d.category || '未知'] = index === 0
+  })
   
   const option = {
-    tooltip: { backgroundColor: 'rgba(10, 22, 40, 0.95)', borderColor: '#00f7ff', textStyle: { color: '#fff' } },
+    tooltip: { 
+      backgroundColor: 'rgba(10, 22, 40, 0.95)', 
+      borderColor: '#00f7ff', 
+      textStyle: { color: '#fff' } 
+    },
+    legend: {
+      type: 'scroll',
+      orient: 'vertical',
+      right: 10,
+      top: 'center',
+      textStyle: { color: 'rgba(255, 255, 255, 0.7)', fontSize: 10 },
+      pageTextStyle: { color: 'rgba(255, 255, 255, 0.7)' },
+      pageIconColor: '#00f7ff',
+      pageIconInactiveColor: 'rgba(255, 255, 255, 0.3)',
+      selected: selectedMap
+    },
     radar: {
       indicator: [
         { name: '点赞', max: maxVal * 1.2 },
@@ -821,7 +910,7 @@ const renderRadarChart = (data) => {
         { name: '分享', max: maxVal * 1.2 },
         { name: '评论', max: maxVal * 1.2 }
       ],
-      center: ['50%', '55%'],
+      center: ['40%', '50%'],
       radius: '60%',
       axisName: { color: 'rgba(255, 255, 255, 0.7)', fontSize: 10 },
       splitArea: { areaStyle: { color: ['rgba(0, 247, 255, 0.1)', 'rgba(139, 92, 246, 0.05)'] } },
@@ -830,23 +919,38 @@ const renderRadarChart = (data) => {
     },
     series: [{
       type: 'radar',
-      data: [{
-        value: [data.avgLike || 0, data.avgCoin || 0, data.avgFavorite || 0, data.avgDanmaku || 0, data.avgShare || 0, data.avgReply || 0],
-        name: '互动数据',
-        areaStyle: { 
-          color: new echarts.graphic.RadialGradient(0.5, 0.5, 1, [
-            { offset: 0, color: 'rgba(0, 247, 255, 0.5)' },
-            { offset: 1, color: 'rgba(139, 92, 246, 0.2)' }
-          ])
-        },
-        lineStyle: { color: '#00f7ff', width: 2, shadowColor: '#00f7ff', shadowBlur: 10 },
-        itemStyle: { color: '#00f7ff', borderColor: '#fff', borderWidth: 2, shadowColor: '#00f7ff', shadowBlur: 10 }
-      }],
+      data: seriesData,
       animationEasing: 'elasticOut'
     }]
   }
   
   chartInstances.radar.setOption(option)
+  
+  chartInstances.radar.off('legendselectchanged')
+  chartInstances.radar.on('legendselectchanged', (params) => {
+    const newSelected = {}
+    let newMaxVal = 1
+    dataList.forEach(d => {
+      const name = d.category || '未知'
+      newSelected[name] = name === params.name
+      if (name === params.name) {
+        newMaxVal = getMaxVal(d)
+      }
+    })
+    chartInstances.radar.setOption({
+      legend: { selected: newSelected },
+      radar: {
+        indicator: [
+          { name: '点赞', max: newMaxVal * 1.2 },
+          { name: '投币', max: newMaxVal * 1.2 },
+          { name: '收藏', max: newMaxVal * 1.2 },
+          { name: '弹幕', max: newMaxVal * 1.2 },
+          { name: '分享', max: newMaxVal * 1.2 },
+          { name: '评论', max: newMaxVal * 1.2 }
+        ]
+      }
+    })
+  })
 }
 
 const renderGaugeChart = () => {
@@ -1144,6 +1248,7 @@ onMounted(() => {
     
     fetchOverview()
     fetchInteractionStats()
+    fetchRadarByCategory()
     fetchTopVideos()
     fetchCategoryDistribution()
     fetchDailyTrend()
@@ -1513,6 +1618,18 @@ onUnmounted(() => {
   flex: 0 0 32%;
 }
 
+.left-panel .chart-card:nth-child(1) {
+  flex: 0 0 22%;
+}
+
+.left-panel .chart-card:nth-child(2) {
+  flex: 0 0 22%;
+}
+
+.left-panel .chart-card:nth-child(3) {
+  flex: 1;
+}
+
 .center-panel {
   flex: 1;
   min-width: 0;
@@ -1725,6 +1842,24 @@ onUnmounted(() => {
 }
 
 .interaction-card .card-title {
+  z-index: 100;
+  position: relative;
+}
+
+.category-likes-card {
+  overflow: visible !important;
+}
+
+.category-likes-card .card-title {
+  z-index: 100;
+  position: relative;
+}
+
+.interaction-stats-card {
+  overflow: visible !important;
+}
+
+.interaction-stats-card .card-title {
   z-index: 100;
   position: relative;
 }
