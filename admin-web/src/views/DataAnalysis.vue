@@ -151,7 +151,7 @@
               <div class="title-line"></div>
               <span class="title-text">
                 <span class="title-icon">🏆</span>
-                热门视频 TOP 10
+                热门视频 TOP 20
               </span>
               <el-radio-group v-model="topSortBy" size="small" @change="fetchTopVideos" class="sort-radio">
                 <el-radio-button label="view">播放量</el-radio-button>
@@ -1885,7 +1885,7 @@ onUnmounted(() => {
 .center-top-row {
   display: flex;
   gap: clamp(10px, 1.5vw, 18px);
-  flex: 0 0 42%;
+  flex: 0 0 53%;
   min-height: 0;
 }
 
@@ -1895,7 +1895,7 @@ onUnmounted(() => {
 }
 
 .center-top-row .chart-card .chart-container {
-  min-height: 200px;
+  min-height: 230px;
 }
 
 .top-videos-card {
