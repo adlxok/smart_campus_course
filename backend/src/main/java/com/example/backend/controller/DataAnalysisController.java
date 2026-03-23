@@ -84,7 +84,7 @@ public class DataAnalysisController {
             
             String sql = String.format(
                 "SELECT bvid, title, view_count, like_count, coin_count, favorite_count, danmaku_count, category " +
-                "FROM bilibili_video ORDER BY %s DESC LIMIT 3", orderColumn);
+                "FROM bilibili_video ORDER BY %s DESC LIMIT 20", orderColumn);
             try (PreparedStatement ps = conn.prepareStatement(sql);
                  ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
