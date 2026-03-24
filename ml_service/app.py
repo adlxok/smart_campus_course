@@ -164,7 +164,7 @@ async def download_video_via_hellotik(bvid, title, task=None, download_dir=None)
             task.add_log(f"  目标文件: {expected_filepath}")
         
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=False)
+            browser = await p.chromium.launch(headless=True)
             context = await browser.new_context(
                 user_agent=get_random_user_agent(),
                 accept_downloads=True
