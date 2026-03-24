@@ -199,7 +199,7 @@
             </el-button>
           </div>
           <div class="videos-section">
-            <el-empty v-if="myVideos.length === 0" description="暂无上传视频" />
+            <el-empty v-if="myVideos.length === 0 && !myVideosLoading" description="暂无上传视频" />
             <el-row :gutter="20" v-else>
               <el-col :xs="24" :sm="12" :md="8" :lg="6" v-for="video in myVideos" :key="video.id">
                 <el-card shadow="hover" class="video-card" @click="playVideo(video)">
@@ -220,6 +220,14 @@
                 </el-card>
               </el-col>
             </el-row>
+            <div ref="myVideosSentinelRef" class="scroll-sentinel"></div>
+            <div v-if="myVideosLoading" class="loading-more">
+              <el-icon class="is-loading"><Loading /></el-icon>
+              <span>加载中...</span>
+            </div>
+            <div v-if="myVideosNoMore && myVideos.length > 0" class="no-more">
+              没有更多视频了
+            </div>
           </div>
         </div>
         
@@ -350,7 +358,7 @@ import { ref, onMounted, reactive, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
-  House, Upload, VideoPlay, DataAnalysis, View, Star, User, Plus 
+  House, Upload, VideoPlay, DataAnalysis, View, Star, User, Plus, Loading 
 } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 
@@ -404,6 +412,12 @@ const coverFile = ref<File | null>(null)
 const coverPreview = ref('')
 const uploading = ref(false)
 
+const myVideosPage = ref(1)
+const myVideosLoading = ref(false)
+const myVideosNoMore = ref(false)
+let myVideosObserver: IntersectionObserver | null = null
+const myVideosSentinelRef = ref<HTMLElement | null>(null)
+
 const analyticsDays = ref(7)
 const trendType = ref('views')
 const analyticsOverview = reactive({
@@ -426,6 +440,9 @@ const handleMenuSelect = (index: string) => {
   activeMenu.value = index
   if (index === 'videos') {
     loadMyVideos()
+    setTimeout(() => {
+      setupMyVideosObserver()
+    }, 100)
   } else if (index === 'analytics') {
     loadAnalyticsData()
   }
@@ -542,10 +559,22 @@ const submitVideo = async () => {
   }
 }
 
-const loadMyVideos = async () => {
+const loadMyVideos = async (loadMore = false) => {
+  if (myVideosLoading.value || myVideosNoMore.value && loadMore) return
+  
+  if (loadMore) {
+    myVideosPage.value++
+  } else {
+    myVideosPage.value = 1
+    myVideos.value = []
+    myVideosNoMore.value = false
+  }
+  
+  myVideosLoading.value = true
+  
   try {
     const token = localStorage.getItem('token')
-    const response = await fetch('http://localhost:8080/api/video/my', {
+    const response = await fetch(`http://localhost:8080/api/video/my?pageNum=${myVideosPage.value}&pageSize=12`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -553,14 +582,50 @@ const loadMyVideos = async () => {
     const data = await response.json()
     
     if (data.success) {
-      myVideos.value = data.data
-      stats.videoCount = data.data.length
-      stats.totalViews = data.data.reduce((sum: number, v: Video) => sum + v.viewCount, 0)
+      if (loadMore) {
+        myVideos.value = [...myVideos.value, ...data.data]
+      } else {
+        myVideos.value = data.data
+      }
+      
+      if (data.data.length < 12) {
+        myVideosNoMore.value = true
+      }
+      
+      stats.videoCount = data.total
+      stats.totalViews = myVideos.value.reduce((sum: number, v: Video) => sum + v.viewCount, 0)
     } else {
       ElMessage.error(data.message || '获取视频列表失败')
     }
   } catch (error) {
     ElMessage.error('获取视频列表失败')
+  } finally {
+    myVideosLoading.value = false
+  }
+}
+
+const setupMyVideosObserver = () => {
+  if (myVideosObserver) {
+    myVideosObserver.disconnect()
+  }
+  
+  myVideosObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && !myVideosLoading.value && !myVideosNoMore.value) {
+          loadMyVideos(true)
+        }
+      })
+    },
+    {
+      root: null,
+      rootMargin: '200px',
+      threshold: 0
+    }
+  )
+  
+  if (myVideosSentinelRef.value) {
+    myVideosObserver.observe(myVideosSentinelRef.value)
   }
 }
 
@@ -1238,6 +1303,26 @@ onMounted(() => {
 
 .video-title-cell.clickable:hover {
   text-decoration: underline;
+}
+
+.scroll-sentinel {
+  height: 1px;
+}
+
+.loading-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: #909399;
+  gap: 8px;
+}
+
+.no-more {
+  text-align: center;
+  padding: 20px;
+  color: #909399;
+  font-size: 14px;
 }
 
 @media (max-width: 768px) {

@@ -87,7 +87,9 @@ public class VideoController {
     }
     
     @GetMapping("/my")
-    public Map<String, Object> getMyVideos(@RequestHeader("Authorization") String authorization) {
+    public Map<String, Object> getMyVideos(@RequestHeader("Authorization") String authorization,
+                                           @RequestParam(defaultValue = "1") Integer pageNum,
+                                           @RequestParam(defaultValue = "12") Integer pageSize) {
         Map<String, Object> response = new HashMap<>();
         
         try {
@@ -104,13 +106,18 @@ public class VideoController {
                 return response;
             }
             
+            Page<Video> page = new Page<>(pageNum, pageSize);
             QueryWrapper<Video> queryWrapper = new QueryWrapper<>();
             queryWrapper.eq("user_id", user.getId());
             queryWrapper.orderByDesc("create_time");
-            List<Video> videos = videoMapper.selectList(queryWrapper);
+            
+            IPage<Video> videoPage = videoMapper.selectPage(page, queryWrapper);
             
             response.put("success", true);
-            response.put("data", videos);
+            response.put("data", videoPage.getRecords());
+            response.put("total", videoPage.getTotal());
+            response.put("pages", videoPage.getPages());
+            response.put("current", videoPage.getCurrent());
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "获取视频列表失败: " + e.getMessage());
