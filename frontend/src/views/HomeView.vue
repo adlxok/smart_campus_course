@@ -33,7 +33,7 @@
         </div>
 
         <!-- 视频列表 -->
-        <div v-if="loading" class="loading">
+        <div v-if="loading && videos.length === 0" class="loading">
           <el-icon class="is-loading" :size="40"><Loading /></el-icon>
           <p>加载中...</p>
         </div>
@@ -74,6 +74,17 @@
               </div>
             </el-col>
           </el-row>
+          
+          <!-- 加载更多哨兵元素 -->
+          <div class="load-more-sentinel" ref="sentinelRef">
+            <el-icon v-if="loadingMore" class="is-loading" :size="24"><Loading /></el-icon>
+            <p v-if="loadingMore">加载更多...</p>
+          </div>
+          
+          <!-- 没有更多 -->
+          <div class="no-more" v-if="noMore && videos.length > 0">
+            <el-divider>已经到底了</el-divider>
+          </div>
         </div>
       </div>
     </div>
@@ -125,9 +136,14 @@ interface UserInfo {
 const router = useRouter()
 
 const loading = ref(false)
+const loadingMore = ref(false)
 const videos = ref<Video[]>([])
 const categories = ref<Category[]>([])
 const activeCategory = ref(0)
+const currentPage = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+const noMore = ref(false)
 
 const userInfo = ref<UserInfo>({
   id: 0,
@@ -216,19 +232,92 @@ onMounted(async () => {
   window.addEventListener('videoSearch', handleSearch)
   await loadCategories()
   loadVideos()
+  
+  setTimeout(() => {
+    setupIntersectionObserver()
+  }, 500)
 })
 
 const handleCategoryChange = () => {
+  currentPage.value = 1
+  videos.value = []
+  noMore.value = false
   if (activeCategory.value === -1) {
     loadRecommendations()
   } else {
     loadVideos()
+    setTimeout(() => {
+      setupIntersectionObserver()
+    }, 100)
   }
 }
 
 onBeforeUnmount(() => {
   window.removeEventListener('videoSearch', handleSearch)
+  if (observer) {
+    observer.disconnect()
+  }
 })
+
+let observer: IntersectionObserver | null = null
+const sentinelRef = ref<HTMLElement | null>(null)
+
+const setupIntersectionObserver = () => {
+  if (observer) {
+    observer.disconnect()
+  }
+  
+  observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && !loadingMore.value && !noMore.value && activeCategory.value !== -1) {
+          loadMoreVideos()
+        }
+      })
+    },
+    {
+      root: null,
+      rootMargin: '200px',
+      threshold: 0
+    }
+  )
+  
+  if (sentinelRef.value) {
+    observer.observe(sentinelRef.value)
+  }
+}
+
+const loadMoreVideos = async () => {
+  if (loadingMore.value || noMore.value) return
+  
+  loadingMore.value = true
+  try {
+    const nextPage = currentPage.value + 1
+    let url = `http://localhost:8080/api/video/list?pageNum=${nextPage}&pageSize=${pageSize.value}`
+    if (activeCategory.value && activeCategory.value !== 0) {
+      url += `&categoryId=${activeCategory.value}`
+    }
+    
+    const response = await fetch(url)
+    const data = await response.json()
+    
+    if (data.success && data.data && data.data.length > 0) {
+      videos.value = [...videos.value, ...data.data]
+      currentPage.value = nextPage
+      if (data.data.length < pageSize.value) {
+        noMore.value = true
+        ElMessage.info('没有更多视频了')
+      }
+    } else {
+      noMore.value = true
+      ElMessage.info('没有更多视频了')
+    }
+  } catch (error) {
+    ElMessage.error('加载更多视频失败')
+  } finally {
+    loadingMore.value = false
+  }
+}
 
 const loadRecommendations = async () => {
   loading.value = true
@@ -274,7 +363,7 @@ const loadRecommendations = async () => {
 const loadVideos = async (keyword: string = '') => {
   loading.value = true
   try {
-    let url = 'http://localhost:8080/api/video/list?pageNum=1&pageSize=20'
+    let url = `http://localhost:8080/api/video/list?pageNum=${currentPage.value}&pageSize=${pageSize.value}`
     if (keyword) {
       url += `&keyword=${encodeURIComponent(keyword)}`
     }
@@ -286,6 +375,10 @@ const loadVideos = async (keyword: string = '') => {
     
     if (data.success) {
       videos.value = data.data
+      total.value = data.total || 0
+      if (data.data.length < pageSize.value) {
+        noMore.value = true
+      }
     } else {
       ElMessage.error(data.message || '加载视频列表失败')
     }
@@ -533,6 +626,30 @@ const formatImageUrl = (url: string) => {
 .dot {
   font-size: 10px;
   margin: 0 2px;
+}
+
+.load-more {
+  text-align: center;
+  padding: 20px 0;
+  color: #909399;
+}
+
+.load-more .el-icon {
+  margin-right: 8px;
+}
+
+.no-more {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.no-more .el-divider {
+  margin: 0;
+}
+
+.no-more .el-divider__text {
+  color: #909399;
+  font-size: 14px;
 }
 
 /* 响应式设计 */
