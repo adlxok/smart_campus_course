@@ -7,7 +7,7 @@
         <div v-if="!loading" class="carousel-container">
           <el-carousel :interval="5000" type="card" height="200px">
             <el-carousel-item v-for="item in carouselItems" :key="item.id">
-              <div class="carousel-item" @click="playVideo(item.video)">
+              <div class="carousel-item" @click="handleBannerClick(item)">
                 <img :src="item.image" alt="轮播图" />
                 <div class="carousel-content">
                   <h3>{{ item.title }}</h3>
@@ -152,59 +152,41 @@ const userInfo = ref<UserInfo>({
   role: ''
 })
 
-const carouselItems = ref<CarouselItem[]>([
-  {
-    id: 1,
-    title: '欢迎来到智慧学堂',
-    description: '发现更多精彩视频内容',
-    image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=education%20video%20platform%20banner%20with%20students%20learning&image_size=landscape_16_9',
-    video: {
-      id: 1,
-      title: '欢迎来到智慧学堂',
-      description: '智慧学堂是一个在线视频学习平台，提供丰富的教育资源',
-      videoUrl: '',
-      coverUrl: '',
-      userId: 1,
-      username: 'admin',
-      viewCount: 0,
-      createTime: new Date().toISOString()
+const carouselItems = ref<CarouselItem[]>([])
+
+const loadBanners = async () => {
+  try {
+    const response = await fetch('http://localhost:8080/api/banner/list')
+    const data = await response.json()
+    if (data.success && data.data) {
+      carouselItems.value = data.data.map(banner => {
+        const imageUrl = banner.imageUrl.startsWith('http') 
+          ? banner.imageUrl 
+          : `http://localhost:8080${banner.imageUrl}`
+        return {
+          id: banner.id,
+          title: banner.title,
+          description: banner.description || '',
+          image: imageUrl,
+          linkUrl: banner.linkUrl || '',
+          video: {
+            id: banner.id,
+            title: banner.title,
+            description: banner.description || '',
+            videoUrl: '',
+            coverUrl: imageUrl,
+            userId: 1,
+            username: 'admin',
+            viewCount: 0,
+            createTime: banner.createTime
+          }
+        }
+      })
     }
-  },
-  {
-    id: 2,
-    title: '热门视频推荐',
-    description: '查看本周最受欢迎的视频',
-    image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=popular%20video%20recommendation%20banner&image_size=landscape_16_9',
-    video: {
-      id: 2,
-      title: '热门视频推荐',
-      description: '本周最受欢迎的视频集合',
-      videoUrl: '',
-      coverUrl: '',
-      userId: 1,
-      username: 'admin',
-      viewCount: 0,
-      createTime: new Date().toISOString()
-    }
-  },
-  {
-    id: 3,
-    title: '新用户指南',
-    description: '快速上手智慧学堂',
-    image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=new%20user%20guide%20banner%20for%20video%20platform&image_size=landscape_16_9',
-    video: {
-      id: 3,
-      title: '新用户指南',
-      description: '快速了解如何使用智慧学堂',
-      videoUrl: '',
-      coverUrl: '',
-      userId: 1,
-      username: 'admin',
-      viewCount: 0,
-      createTime: new Date().toISOString()
-    }
+  } catch (error) {
+    console.error('加载轮播图失败:', error)
   }
-])
+}
 
 const handleSearch = (event: Event) => {
   const customEvent = event as CustomEvent
@@ -231,6 +213,7 @@ onMounted(async () => {
   
   window.addEventListener('videoSearch', handleSearch)
   await loadCategories()
+  await loadBanners()
   loadVideos()
   
   setTimeout(() => {
@@ -389,8 +372,28 @@ const loadVideos = async (keyword: string = '') => {
   }
 }
 
-const playVideo = async (video: Video) => {
-  router.push(`/video?id=${video.id}`)
+const playVideo = async (video: Video & { linkUrl?: string }) => {
+  if (video.linkUrl) {
+    if (video.linkUrl.startsWith('http')) {
+      window.open(video.linkUrl, '_blank')
+    } else {
+      router.push(video.linkUrl)
+    }
+    return
+  }
+  if (video.id && video.id > 0) {
+    router.push(`/video?id=${video.id}`)
+  }
+}
+
+const handleBannerClick = (item: CarouselItem) => {
+  if (item.linkUrl) {
+    if (item.linkUrl.startsWith('http')) {
+      window.open(item.linkUrl, '_blank')
+    } else {
+      router.push(item.linkUrl)
+    }
+  }
 }
 
 const formatDate = (dateStr: string) => {

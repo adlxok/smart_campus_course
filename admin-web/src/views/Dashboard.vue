@@ -44,6 +44,14 @@
               <span class="icon">🔔</span>
               <span>系统通知管理</span>
             </div>
+            <div 
+              class="nav-item" 
+              :class="{ active: currentMenu === 'banners' }"
+              @click="currentMenu = 'banners'"
+            >
+              <span class="icon">🖼️</span>
+              <span>轮播图管理</span>
+            </div>
           </div>
         </div>
 
@@ -536,6 +544,109 @@
           </div>
         </div>
 
+        <div v-if="currentMenu === 'banners'" class="banner-section">
+          <el-card class="banner-card">
+            <template #header>
+              <div class="card-header">
+                <span>🖼️ 轮播图管理</span>
+                <el-button type="primary" size="small" @click="openBannerModal()">添加轮播图</el-button>
+              </div>
+            </template>
+            
+            <el-table :data="bannerList" style="width: 100%" v-loading="bannerLoading">
+              <el-table-column prop="id" label="ID" width="80" />
+              <el-table-column label="图片" width="150">
+                <template #default="{ row }">
+                  <el-image 
+                    :src="row.imageUrl" 
+                    :preview-src-list="[row.imageUrl]"
+                    style="width: 120px; height: 60px"
+                    fit="cover"
+                  />
+                </template>
+              </el-table-column>
+              <el-table-column prop="title" label="标题" min-width="150" />
+              <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+              <el-table-column prop="sortOrder" label="排序" width="80" />
+              <el-table-column prop="status" label="状态" width="80">
+                <template #default="{ row }">
+                  <el-tag :type="row.status === 1 ? 'success' : 'danger'">
+                    {{ row.status === 1 ? '启用' : '禁用' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="createTime" label="创建时间" width="180">
+                <template #default="{ row }">
+                  {{ formatDate(row.createTime) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="200">
+                <template #default="{ row }">
+                  <el-button size="small" type="primary" @click="editBanner(row)">编辑</el-button>
+                  <el-button size="small" :type="row.status === 1 ? 'warning' : 'success'" @click="toggleBannerStatus(row)">
+                    {{ row.status === 1 ? '禁用' : '启用' }}
+                  </el-button>
+                  <el-button size="small" type="danger" @click="deleteBanner(row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+
+            <div class="pagination">
+              <el-pagination
+                v-model:current-page="bannerPage"
+                v-model:page-size="bannerPageSize"
+                :page-sizes="[10, 20, 50]"
+                :total="bannerTotal"
+                layout="total, sizes, prev, pager, next"
+                @size-change="fetchBannerList"
+                @current-change="fetchBannerList"
+              />
+            </div>
+          </el-card>
+
+          <el-dialog v-model="showBannerModal" :title="bannerForm.id ? '编辑轮播图' : '添加轮播图'" width="600px">
+            <el-form :model="bannerForm" label-width="80px">
+              <el-form-item label="标题" required>
+                <el-input v-model="bannerForm.title" placeholder="请输入标题" />
+              </el-form-item>
+              <el-form-item label="描述">
+                <el-input v-model="bannerForm.description" type="textarea" :rows="2" placeholder="请输入描述" />
+              </el-form-item>
+              <el-form-item label="图片" required>
+                <el-upload
+                  class="banner-uploader"
+                  :action="uploadUrl"
+                  :show-file-list="false"
+                  :on-success="handleBannerUploadSuccess"
+                  :before-upload="beforeBannerUpload"
+                  accept="image/*"
+                >
+                  <el-image 
+                    v-if="bannerForm.imageUrl" 
+                    :src="bannerForm.imageUrl" 
+                    style="width: 100%; max-height: 200px"
+                    fit="contain"
+                  />
+                  <el-icon v-else class="banner-uploader-icon"><Plus /></el-icon>
+                </el-upload>
+              </el-form-item>
+              <el-form-item label="跳转链接">
+                <el-input v-model="bannerForm.linkUrl" placeholder="请输入跳转链接（可选）" />
+              </el-form-item>
+              <el-form-item label="排序">
+                <el-input-number v-model="bannerForm.sortOrder" :min="0" :max="999" />
+              </el-form-item>
+              <el-form-item label="状态">
+                <el-switch v-model="bannerForm.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="禁用" />
+              </el-form-item>
+            </el-form>
+            <template #footer>
+              <el-button @click="showBannerModal = false">取消</el-button>
+              <el-button type="primary" @click="saveBanner">保存</el-button>
+            </template>
+          </el-dialog>
+        </div>
+
         <div v-if="currentMenu === 'proxy'" class="proxy-section">
           <el-card class="proxy-card">
             <template #header>
@@ -855,6 +966,23 @@ export default {
     })
     const allUsers = ref([])
 
+    const bannerList = ref([])
+    const bannerLoading = ref(false)
+    const bannerPage = ref(1)
+    const bannerPageSize = ref(10)
+    const bannerTotal = ref(0)
+    const showBannerModal = ref(false)
+    const bannerForm = ref({
+      id: null,
+      title: '',
+      description: '',
+      imageUrl: '',
+      linkUrl: '',
+      sortOrder: 0,
+      status: 1
+    })
+    const uploadUrl = 'http://localhost:8080/api/banner/admin/upload'
+
     const menuTitle = computed(() => {
       const titles = {
         dashboard: '数据概览',
@@ -864,7 +992,8 @@ export default {
         import: '视频导入',
         proxy: '代理管理',
         users: '用户管理',
-        notifications: '系统通知管理'
+        notifications: '系统通知管理',
+        banners: '轮播图管理'
       }
       return titles[currentMenu.value] || '控制台'
     })
@@ -1502,6 +1631,139 @@ export default {
       return texts[type] || '普通'
     }
 
+    const fetchBannerList = async () => {
+      bannerLoading.value = true
+      try {
+        const response = await api.get('/banner/admin/list', {
+          params: {
+            page: bannerPage.value,
+            pageSize: bannerPageSize.value
+          }
+        })
+        if (response.data.success) {
+          bannerList.value = response.data.data
+          bannerTotal.value = response.data.total
+        }
+      } catch (error) {
+        console.error('获取轮播图列表失败:', error)
+        ElMessage.error('获取轮播图列表失败')
+      } finally {
+        bannerLoading.value = false
+      }
+    }
+
+    const openBannerModal = () => {
+      bannerForm.value = {
+        id: null,
+        title: '',
+        description: '',
+        imageUrl: '',
+        linkUrl: '',
+        sortOrder: 0,
+        status: 1
+      }
+      showBannerModal.value = true
+    }
+
+    const editBanner = (banner) => {
+      bannerForm.value = {
+        id: banner.id,
+        title: banner.title,
+        description: banner.description || '',
+        imageUrl: banner.imageUrl,
+        linkUrl: banner.linkUrl || '',
+        sortOrder: banner.sortOrder || 0,
+        status: banner.status
+      }
+      showBannerModal.value = true
+    }
+
+    const saveBanner = async () => {
+      if (!bannerForm.value.title || !bannerForm.value.imageUrl) {
+        ElMessage.warning('请填写标题并上传图片')
+        return
+      }
+
+      try {
+        let response
+        if (bannerForm.value.id) {
+          response = await api.put('/banner/admin/update', bannerForm.value)
+        } else {
+          response = await api.post('/banner/admin/add', bannerForm.value)
+        }
+
+        if (response.data.success) {
+          ElMessage.success(bannerForm.value.id ? '更新成功' : '添加成功')
+          showBannerModal.value = false
+          fetchBannerList()
+        } else {
+          ElMessage.error(response.data.message || '操作失败')
+        }
+      } catch (error) {
+        console.error('保存轮播图失败:', error)
+        ElMessage.error('保存轮播图失败')
+      }
+    }
+
+    const deleteBanner = async (banner) => {
+      if (!confirm(`确定要删除轮播图"${banner.title}"吗？`)) return
+
+      try {
+        const response = await api.delete(`/banner/admin/delete/${banner.id}`)
+        if (response.data.success) {
+          ElMessage.success('删除成功')
+          fetchBannerList()
+        } else {
+          ElMessage.error(response.data.message || '删除失败')
+        }
+      } catch (error) {
+        console.error('删除轮播图失败:', error)
+        ElMessage.error('删除轮播图失败')
+      }
+    }
+
+    const toggleBannerStatus = async (banner) => {
+      try {
+        const response = await api.put(`/banner/admin/toggle/${banner.id}`)
+        if (response.data.success) {
+          ElMessage.success(response.data.message)
+          fetchBannerList()
+        } else {
+          ElMessage.error(response.data.message || '操作失败')
+        }
+      } catch (error) {
+        console.error('切换状态失败:', error)
+        ElMessage.error('切换状态失败')
+      }
+    }
+
+    const beforeBannerUpload = (file) => {
+      const isImage = file.type.startsWith('image/')
+      const isLt5M = file.size / 1024 / 1024 < 5
+
+      if (!isImage) {
+        ElMessage.error('只能上传图片文件!')
+        return false
+      }
+      if (!isLt5M) {
+        ElMessage.error('图片大小不能超过 5MB!')
+        return false
+      }
+      return true
+    }
+
+    const handleBannerUploadSuccess = (response) => {
+      if (response.success) {
+        const imageUrl = response.url.startsWith('http') 
+          ? response.url 
+          : `http://localhost:8080${response.url}`
+        bannerForm.value.imageUrl = imageUrl
+        ElMessage.success('上传成功')
+      } else {
+        ElMessage.error(response.message || '上传失败')
+      }
+    }
+
     const fetchBilibiliVideos = async () => {
       bilibiliLoading.value = true
       try {
@@ -1746,7 +2008,7 @@ export default {
     }
 
     watch(currentMenu, (newMenu) => {
-      const systemMenus = ['dashboard', 'categories', 'users', 'notifications']
+      const systemMenus = ['dashboard', 'categories', 'users', 'notifications', 'banners']
       const crawlerMenus = ['videos', 'crawler', 'import', 'proxy', 'analysis']
       
       if (systemMenus.includes(newMenu)) {
@@ -1768,6 +2030,9 @@ export default {
       if (newMenu === 'notifications') {
         fetchNotificationList()
       }
+      if (newMenu === 'banners') {
+        fetchBannerList()
+      }
     })
 
     onMounted(() => {
@@ -1775,7 +2040,7 @@ export default {
       username.value = user.username || 'Admin'
       currentUserId.value = user.id || null
       
-      const systemMenus = ['dashboard', 'categories', 'users', 'notifications']
+      const systemMenus = ['dashboard', 'categories', 'users', 'notifications', 'banners']
       const crawlerMenus = ['videos', 'crawler', 'import', 'proxy', 'analysis']
       
       if (systemMenus.includes(currentMenu.value)) {
@@ -1789,6 +2054,7 @@ export default {
       fetchStats()
       fetchCategories()
       fetchNotificationList()
+      fetchBannerList()
     })
 
     onUnmounted(() => {
@@ -1894,7 +2160,23 @@ export default {
       toggleNotificationStatus,
       sendNotificationToAll,
       getNotificationTypeStyle,
-      getNotificationTypeText
+      getNotificationTypeText,
+      bannerList,
+      bannerLoading,
+      bannerPage,
+      bannerPageSize,
+      bannerTotal,
+      showBannerModal,
+      bannerForm,
+      uploadUrl,
+      fetchBannerList,
+      openBannerModal,
+      editBanner,
+      saveBanner,
+      deleteBanner,
+      toggleBannerStatus,
+      beforeBannerUpload,
+      handleBannerUploadSuccess
     }
   }
 }
