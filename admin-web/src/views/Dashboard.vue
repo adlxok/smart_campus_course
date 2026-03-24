@@ -5,77 +5,96 @@
         <h2>后台管理系统</h2>
       </div>
       <nav class="nav-menu">
-        <div 
-          class="nav-item" 
-          :class="{ active: currentMenu === 'dashboard' }"
-          @click="currentMenu = 'dashboard'"
-        >
-          <span class="icon">📊</span>
-          <span>数据概览</span>
+        <div class="menu-group">
+          <div class="menu-group-title" @click="toggleGroup('system')">
+            <span class="group-icon">⚙️</span>
+            <span>系统管理</span>
+            <span class="arrow" :class="{ expanded: expandedGroups.system }">▼</span>
+          </div>
+          <div class="menu-group-items" v-show="expandedGroups.system">
+            <div 
+              class="nav-item" 
+              :class="{ active: currentMenu === 'dashboard' }"
+              @click="currentMenu = 'dashboard'"
+            >
+              <span class="icon">📊</span>
+              <span>数据概览</span>
+            </div>
+            <div 
+              class="nav-item" 
+              :class="{ active: currentMenu === 'categories' }"
+              @click="currentMenu = 'categories'"
+            >
+              <span class="icon">📁</span>
+              <span>分类管理</span>
+            </div>
+            <div 
+              class="nav-item" 
+              :class="{ active: currentMenu === 'users' }"
+              @click="currentMenu = 'users'"
+            >
+              <span class="icon">👥</span>
+              <span>用户管理</span>
+            </div>
+            <div 
+              class="nav-item" 
+              :class="{ active: currentMenu === 'notifications' }"
+              @click="currentMenu = 'notifications'"
+            >
+              <span class="icon">🔔</span>
+              <span>系统通知管理</span>
+            </div>
+          </div>
         </div>
-        <div 
-          class="nav-item" 
-          :class="{ active: currentMenu === 'videos' }"
-          @click="currentMenu = 'videos'"
-        >
-          <span class="icon">🎬</span>
-          <span>B站视频管理</span>
-        </div>
-        <div 
-          class="nav-item" 
-          :class="{ active: currentMenu === 'categories' }"
-          @click="currentMenu = 'categories'"
-        >
-          <span class="icon">📁</span>
-          <span>分类管理</span>
-        </div>
-        <div 
-          class="nav-item" 
-          :class="{ active: currentMenu === 'crawler' }"
-          @click="currentMenu = 'crawler'"
-        >
-          <span class="icon">🕷️</span>
-          <span>视频爬取</span>
-        </div>
-        <div 
-          class="nav-item" 
-          :class="{ active: currentMenu === 'import' }"
-          @click="currentMenu = 'import'"
-        >
-          <span class="icon">📥</span>
-          <span>视频导入</span>
-        </div>
-        <div 
-          class="nav-item" 
-          :class="{ active: currentMenu === 'proxy' }"
-          @click="currentMenu = 'proxy'"
-        >
-          <span class="icon">🌐</span>
-          <span>代理管理</span>
-        </div>
-        <div 
-          class="nav-item" 
-          :class="{ active: currentMenu === 'analysis' }"
-          @click="goToAnalysis"
-        >
-          <span class="icon">📊</span>
-          <span>B站视频数据分析</span>
-        </div>
-        <div 
-          class="nav-item" 
-          :class="{ active: currentMenu === 'users' }"
-          @click="currentMenu = 'users'"
-        >
-          <span class="icon">👥</span>
-          <span>用户管理</span>
-        </div>
-        <div 
-          class="nav-item" 
-          :class="{ active: currentMenu === 'settings' }"
-          @click="currentMenu = 'settings'"
-        >
-          <span class="icon">⚙️</span>
-          <span>系统设置</span>
+
+        <div class="menu-group">
+          <div class="menu-group-title" @click="toggleGroup('crawler')">
+            <span class="group-icon">🕷️</span>
+            <span>数据爬取和分析</span>
+            <span class="arrow" :class="{ expanded: expandedGroups.crawler }">▼</span>
+          </div>
+          <div class="menu-group-items" v-show="expandedGroups.crawler">
+            <div 
+              class="nav-item" 
+              :class="{ active: currentMenu === 'videos' }"
+              @click="currentMenu = 'videos'"
+            >
+              <span class="icon">🎬</span>
+              <span>B站视频管理</span>
+            </div>
+            <div 
+              class="nav-item" 
+              :class="{ active: currentMenu === 'crawler' }"
+              @click="currentMenu = 'crawler'"
+            >
+              <span class="icon">🕷️</span>
+              <span>视频爬取</span>
+            </div>
+            <div 
+              class="nav-item" 
+              :class="{ active: currentMenu === 'import' }"
+              @click="currentMenu = 'import'"
+            >
+              <span class="icon">📥</span>
+              <span>视频导入</span>
+            </div>
+            <div 
+              class="nav-item" 
+              :class="{ active: currentMenu === 'proxy' }"
+              @click="currentMenu = 'proxy'"
+            >
+              <span class="icon">🌐</span>
+              <span>代理管理</span>
+            </div>
+            <div 
+              class="nav-item" 
+              :class="{ active: currentMenu === 'analysis' }"
+              @click="goToAnalysis"
+            >
+              <span class="icon">📊</span>
+              <span>B站视频数据分析</span>
+            </div>
+          </div>
         </div>
       </nav>
       <div class="user-section">
@@ -592,11 +611,100 @@
           </el-dialog>
         </div>
 
-        <div v-if="currentMenu === 'settings'">
-          <div class="empty-state">
-            <span class="empty-icon">⚙️</span>
-            <p>系统设置功能开发中...</p>
-          </div>
+        <div v-if="currentMenu === 'notifications'" class="notification-section">
+          <el-card class="notification-card">
+            <template #header>
+              <div class="card-header">
+                <span>🔔 系统通知管理</span>
+                <el-button type="primary" size="small" @click="openNotificationModal()">发布通知</el-button>
+              </div>
+            </template>
+            
+            <el-table :data="notificationList" style="width: 100%" v-loading="notificationLoading">
+              <el-table-column prop="id" label="ID" width="80" />
+              <el-table-column prop="title" label="标题" min-width="200" />
+              <el-table-column prop="type" label="类型" width="100">
+                <template #default="{ row }">
+                  <el-tag :type="getNotificationTypeStyle(row.type)">{{ getNotificationTypeText(row.type) }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="status" label="状态" width="80">
+                <template #default="{ row }">
+                  <el-tag :type="row.status === 1 ? 'success' : 'danger'">
+                    {{ row.status === 1 ? '启用' : '禁用' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="createTime" label="创建时间" width="180">
+                <template #default="{ row }">
+                  {{ formatDate(row.createTime) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="280">
+                <template #default="{ row }">
+                  <el-button size="small" type="primary" @click="editNotification(row)">编辑</el-button>
+                  <el-button size="small" :type="row.status === 1 ? 'warning' : 'success'" @click="toggleNotificationStatus(row)">
+                    {{ row.status === 1 ? '禁用' : '启用' }}
+                  </el-button>
+                  <el-button size="small" type="info" @click="sendNotificationToAll(row)">发送给所有人</el-button>
+                  <el-button size="small" type="danger" @click="deleteNotification(row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+
+            <div class="pagination">
+              <el-pagination
+                v-model:current-page="notificationPage"
+                v-model:page-size="notificationPageSize"
+                :page-sizes="[10, 20, 50]"
+                :total="notificationTotal"
+                layout="total, sizes, prev, pager, next"
+                @size-change="fetchNotificationList"
+                @current-change="fetchNotificationList"
+              />
+            </div>
+          </el-card>
+
+          <el-dialog v-model="showNotificationModal" :title="notificationForm.id ? '编辑通知' : '发布通知'" width="600px">
+            <el-form :model="notificationForm" label-width="80px">
+              <el-form-item label="标题" required>
+                <el-input v-model="notificationForm.title" placeholder="请输入通知标题" />
+              </el-form-item>
+              <el-form-item label="类型">
+                <el-select v-model="notificationForm.type" style="width: 100%">
+                  <el-option label="普通" value="normal" />
+                  <el-option label="重要" value="important" />
+                  <el-option label="紧急" value="urgent" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="内容" required>
+                <el-input v-model="notificationForm.content" type="textarea" :rows="5" placeholder="请输入通知内容" />
+              </el-form-item>
+              <el-form-item label="状态">
+                <el-switch v-model="notificationForm.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="禁用" />
+              </el-form-item>
+              <el-form-item label="发送对象" v-if="!notificationForm.id">
+                <el-radio-group v-model="notificationForm.sendType">
+                  <el-radio value="all">所有用户</el-radio>
+                  <el-radio value="selected">指定用户</el-radio>
+                </el-radio-group>
+              </el-form-item>
+              <el-form-item label="选择用户" v-if="notificationForm.sendType === 'selected' && !notificationForm.id">
+                <el-select v-model="notificationForm.selectedUsers" multiple filterable placeholder="选择用户" style="width: 100%">
+                  <el-option
+                    v-for="user in allUsers"
+                    :key="user.id"
+                    :label="user.username"
+                    :value="user.id"
+                  />
+                </el-select>
+              </el-form-item>
+            </el-form>
+            <template #footer>
+              <el-button @click="showNotificationModal = false">取消</el-button>
+              <el-button type="primary" @click="saveNotification">保存</el-button>
+            </template>
+          </el-dialog>
         </div>
       </div>
     </main>
@@ -660,7 +768,15 @@ export default {
     const username = ref('')
     const currentUserId = ref(null)
     const currentMenu = ref('dashboard')
+    const expandedGroups = ref({
+      system: false,
+      crawler: false
+    })
     const videos = ref([])
+
+    const toggleGroup = (group) => {
+      expandedGroups.value[group] = !expandedGroups.value[group]
+    }
     const stats = ref({})
     const page = ref(1)
     const pageSize = ref(20)
@@ -722,6 +838,23 @@ export default {
       password: ''
     })
 
+    const notificationList = ref([])
+    const notificationLoading = ref(false)
+    const notificationPage = ref(1)
+    const notificationPageSize = ref(10)
+    const notificationTotal = ref(0)
+    const showNotificationModal = ref(false)
+    const notificationForm = ref({
+      id: null,
+      title: '',
+      content: '',
+      type: 'normal',
+      status: 1,
+      sendType: 'all',
+      selectedUsers: []
+    })
+    const allUsers = ref([])
+
     const menuTitle = computed(() => {
       const titles = {
         dashboard: '数据概览',
@@ -731,7 +864,7 @@ export default {
         import: '视频导入',
         proxy: '代理管理',
         users: '用户管理',
-        settings: '系统设置'
+        notifications: '系统通知管理'
       }
       return titles[currentMenu.value] || '控制台'
     })
@@ -1212,6 +1345,163 @@ export default {
       }
     }
 
+    const fetchNotificationList = async () => {
+      notificationLoading.value = true
+      try {
+        const response = await api.get('/admin/notification/list', {
+          params: {
+            page: notificationPage.value,
+            pageSize: notificationPageSize.value
+          }
+        })
+        if (response.data.success) {
+          notificationList.value = response.data.data
+          notificationTotal.value = response.data.total
+        }
+      } catch (error) {
+        console.error('获取通知列表失败:', error)
+        ElMessage.error('获取通知列表失败')
+      } finally {
+        notificationLoading.value = false
+      }
+    }
+
+    const openNotificationModal = async () => {
+      notificationForm.value = {
+        id: null,
+        title: '',
+        content: '',
+        type: 'normal',
+        status: 1,
+        sendType: 'all',
+        selectedUsers: []
+      }
+      
+      try {
+        const response = await api.get('/admin/notification/users')
+        if (response.data.success) {
+          allUsers.value = response.data.data
+        }
+      } catch (error) {
+        console.error('获取用户列表失败:', error)
+      }
+      
+      showNotificationModal.value = true
+    }
+
+    const editNotification = (notification) => {
+      notificationForm.value = {
+        id: notification.id,
+        title: notification.title,
+        content: notification.content,
+        type: notification.type || 'normal',
+        status: notification.status,
+        sendType: 'all',
+        selectedUsers: []
+      }
+      showNotificationModal.value = true
+    }
+
+    const saveNotification = async () => {
+      if (!notificationForm.value.title || !notificationForm.value.content) {
+        ElMessage.warning('请填写标题和内容')
+        return
+      }
+
+      try {
+        let response
+        if (notificationForm.value.id) {
+          response = await api.put('/admin/notification/update', notificationForm.value)
+        } else {
+          const data = { ...notificationForm.value }
+          if (data.sendType === 'all') {
+            response = await api.post('/admin/notification/add', data)
+          } else {
+            response = await api.post('/admin/notification/add', data, {
+              params: { userIds: data.selectedUsers.join(',') }
+            })
+          }
+        }
+
+        if (response.data.success) {
+          ElMessage.success(notificationForm.value.id ? '更新成功' : '发布成功')
+          showNotificationModal.value = false
+          fetchNotificationList()
+        } else {
+          ElMessage.error(response.data.message || '操作失败')
+        }
+      } catch (error) {
+        console.error('保存通知失败:', error)
+        ElMessage.error('保存通知失败')
+      }
+    }
+
+    const deleteNotification = async (notification) => {
+      if (!confirm(`确定要删除通知"${notification.title}"吗？`)) return
+
+      try {
+        const response = await api.delete(`/admin/notification/delete/${notification.id}`)
+        if (response.data.success) {
+          ElMessage.success('删除成功')
+          fetchNotificationList()
+        } else {
+          ElMessage.error(response.data.message || '删除失败')
+        }
+      } catch (error) {
+        console.error('删除通知失败:', error)
+        ElMessage.error('删除通知失败')
+      }
+    }
+
+    const toggleNotificationStatus = async (notification) => {
+      try {
+        const response = await api.put(`/admin/notification/toggle/${notification.id}`)
+        if (response.data.success) {
+          ElMessage.success(response.data.message)
+          fetchNotificationList()
+        } else {
+          ElMessage.error(response.data.message || '操作失败')
+        }
+      } catch (error) {
+        console.error('切换状态失败:', error)
+        ElMessage.error('切换状态失败')
+      }
+    }
+
+    const sendNotificationToAll = async (notification) => {
+      if (!confirm(`确定要将通知"${notification.title}"发送给所有用户吗？`)) return
+
+      try {
+        const response = await api.post(`/admin/notification/send-to-all/${notification.id}`)
+        if (response.data.success) {
+          ElMessage.success(response.data.message)
+        } else {
+          ElMessage.error(response.data.message || '发送失败')
+        }
+      } catch (error) {
+        console.error('发送通知失败:', error)
+        ElMessage.error('发送通知失败')
+      }
+    }
+
+    const getNotificationTypeStyle = (type) => {
+      const styles = {
+        normal: '',
+        important: 'warning',
+        urgent: 'danger'
+      }
+      return styles[type] || ''
+    }
+
+    const getNotificationTypeText = (type) => {
+      const texts = {
+        normal: '普通',
+        important: '重要',
+        urgent: '紧急'
+      }
+      return texts[type] || '普通'
+    }
+
     const fetchBilibiliVideos = async () => {
       bilibiliLoading.value = true
       try {
@@ -1456,6 +1746,16 @@ export default {
     }
 
     watch(currentMenu, (newMenu) => {
+      const systemMenus = ['dashboard', 'categories', 'users', 'notifications']
+      const crawlerMenus = ['videos', 'crawler', 'import', 'proxy', 'analysis']
+      
+      if (systemMenus.includes(newMenu)) {
+        expandedGroups.value.system = true
+      }
+      if (crawlerMenus.includes(newMenu)) {
+        expandedGroups.value.crawler = true
+      }
+      
       if (newMenu === 'categories') {
         fetchCategories()
       }
@@ -1465,15 +1765,30 @@ export default {
       if (newMenu === 'proxy') {
         fetchProxyList()
       }
+      if (newMenu === 'notifications') {
+        fetchNotificationList()
+      }
     })
 
     onMounted(() => {
       const user = JSON.parse(localStorage.getItem('user') || '{}')
       username.value = user.username || 'Admin'
       currentUserId.value = user.id || null
+      
+      const systemMenus = ['dashboard', 'categories', 'users', 'notifications']
+      const crawlerMenus = ['videos', 'crawler', 'import', 'proxy', 'analysis']
+      
+      if (systemMenus.includes(currentMenu.value)) {
+        expandedGroups.value.system = true
+      }
+      if (crawlerMenus.includes(currentMenu.value)) {
+        expandedGroups.value.crawler = true
+      }
+      
       fetchVideos()
       fetchStats()
       fetchCategories()
+      fetchNotificationList()
     })
 
     onUnmounted(() => {
@@ -1488,6 +1803,8 @@ export default {
     return {
       username,
       currentMenu,
+      expandedGroups,
+      toggleGroup,
       menuTitle,
       videos,
       stats,
@@ -1560,7 +1877,24 @@ export default {
       toggleProxyStatus,
       reloadProxyCache,
       logout,
-      goToAnalysis
+      goToAnalysis,
+      notificationList,
+      notificationLoading,
+      notificationPage,
+      notificationPageSize,
+      notificationTotal,
+      showNotificationModal,
+      notificationForm,
+      allUsers,
+      fetchNotificationList,
+      openNotificationModal,
+      editNotification,
+      saveNotification,
+      deleteNotification,
+      toggleNotificationStatus,
+      sendNotificationToAll,
+      getNotificationTypeStyle,
+      getNotificationTypeText
     }
   }
 }
@@ -1601,8 +1935,48 @@ export default {
   padding: 10px 0;
 }
 
+.menu-group {
+  margin-bottom: 4px;
+}
+
+.menu-group-title {
+  padding: 12px 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s;
+  user-select: none;
+}
+
+.menu-group-title:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.menu-group-title .group-icon {
+  font-size: 16px;
+}
+
+.menu-group-title .arrow {
+  margin-left: auto;
+  font-size: 10px;
+  transition: transform 0.3s;
+}
+
+.menu-group-title .arrow.expanded {
+  transform: rotate(180deg);
+}
+
+.menu-group-items {
+  overflow: hidden;
+}
+
 .nav-item {
   padding: 12px 24px;
+  padding-left: 40px;
   cursor: pointer;
   display: flex;
   align-items: center;

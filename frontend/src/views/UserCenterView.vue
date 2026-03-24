@@ -7,10 +7,6 @@
         </div>
         <div class="sidebar-menu">
           <el-menu :default-active="activeMenu" class="menu" @select="handleMenuSelect">
-            <el-menu-item index="home" class="menu-item">
-              <el-icon><House /></el-icon>
-              <span>首页</span>
-            </el-menu-item>
             <el-menu-item index="info" class="menu-item">
               <el-icon><User /></el-icon>
               <span>我的信息</span>
@@ -18,10 +14,6 @@
             <el-menu-item index="avatar" class="menu-item">
               <el-icon><Picture /></el-icon>
               <span>我的头像</span>
-            </el-menu-item>
-            <el-menu-item index="achievements" class="menu-item">
-              <el-icon><Trophy /></el-icon>
-              <span>成就勋章</span>
             </el-menu-item>
             <el-menu-item index="security" class="menu-item">
               <el-icon><Lock /></el-icon>
@@ -44,93 +36,7 @@
       </div>
       
       <div class="main-content">
-        <div v-if="activeMenu === 'home'" class="content-panel">
-          <div class="user-info-section">
-            <div class="user-info">
-              <el-avatar :size="80" :src="userInfo.avatar"></el-avatar>
-              <div class="user-details">
-                <div class="username-section">
-                  <h3 class="username">{{ userInfo.username }}</h3>
-                  <span class="member-status">正式会员</span>
-                </div>
-                <div class="level-section">
-                  <span class="level">LV{{ userInfo.level }}</span>
-                  <el-progress :percentage="levelPercentage" :format="formatProgress" />
-                </div>
-                <div class="coins-section">
-                  <span class="coin-item">
-                    <el-icon><Coin /></el-icon>
-                    {{ userInfo.gold }}
-                  </span>
-                  <span class="coin-item">
-                    <el-icon><Money /></el-icon>
-                    {{ userInfo.coins }}
-                  </span>
-                </div>
-              </div>
-              <div class="action-buttons">
-                <el-button type="primary" size="small" @click="activeMenu = 'info'">修改资料</el-button>
-                <el-button size="small">个人空间</el-button>
-              </div>
-            </div>
-          </div>
-          
-          <div class="daily-rewards-section">
-            <div class="section-header">
-              <el-icon><Present /></el-icon>
-              <h3>每日奖励</h3>
-            </div>
-            <div class="rewards-grid">
-              <div class="reward-item" :class="{ completed: dailyRewards.login }" @click="claimReward('login')">
-                <div class="reward-icon">
-                  <el-icon v-if="dailyRewards.login" :size="40"><Check /></el-icon>
-                  <span v-else class="exp-text">5EXP</span>
-                </div>
-                <div class="reward-title">每日登录</div>
-                <div class="reward-status">{{ dailyRewards.login ? '5经验值到手' : '点击领取' }}</div>
-              </div>
-              <div class="reward-item" :class="{ completed: dailyRewards.watch }" @click="claimReward('watch')">
-                <div class="reward-icon">
-                  <el-icon v-if="dailyRewards.watch" :size="40"><Check /></el-icon>
-                  <span v-else class="exp-text">5EXP</span>
-                </div>
-                <div class="reward-title">每日观看视频</div>
-                <div class="reward-status">{{ dailyRewards.watch ? '5经验值到手' : '观看视频后领取' }}</div>
-              </div>
-              <div class="reward-item" :class="{ completed: dailyRewards.coin >= 50 }">
-                <div class="reward-icon">
-                  <el-icon v-if="dailyRewards.coin >= 50" :size="40"><Check /></el-icon>
-                  <span v-else class="exp-text">50EXP</span>
-                </div>
-                <div class="reward-title">每日投币</div>
-                <div class="reward-status">已获得{{ dailyRewards.coin }}/50</div>
-              </div>
-              <div class="reward-item" :class="{ completed: dailyRewards.share }">
-                <div class="reward-icon">
-                  <el-icon v-if="dailyRewards.share" :size="40"><Check /></el-icon>
-                  <span v-else class="exp-text">5EXP</span>
-                </div>
-                <div class="reward-title">每日分享视频</div>
-                <div class="reward-status">{{ dailyRewards.share ? '已完成' : '未完成' }}</div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="achievements-section">
-            <div class="section-header">
-              <el-icon><Trophy /></el-icon>
-              <h3>成就勋章</h3>
-            </div>
-            <div class="achievements-content">
-              <div class="empty-achievements">
-                <el-empty description="你还没有领取过勋章哦！" />
-                <el-button type="primary" size="small" @click="activeMenu = 'achievements'">查看勋章详情</el-button>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div v-else-if="activeMenu === 'info'" class="content-panel">
+        <div v-if="activeMenu === 'info'" class="content-panel">
           <div class="panel-header">
             <h3>我的信息</h3>
           </div>
@@ -185,15 +91,6 @@
               </el-button>
             </div>
             <p class="avatar-tip">支持 jpg、png、gif 格式，建议上传正方形图片，文件大小不超过 2MB</p>
-          </div>
-        </div>
-        
-        <div v-else-if="activeMenu === 'achievements'" class="content-panel">
-          <div class="panel-header">
-            <h3>成就勋章</h3>
-          </div>
-          <div class="achievements-list">
-            <el-empty description="暂无成就勋章" />
           </div>
         </div>
         
@@ -364,17 +261,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
-  House, User, Picture, Star, Trophy, Lock, Close, Money, Timer, Check, Share,
-  Present, Coin, Upload, VideoPlay, Delete, Loading
+  User, Picture, Star, Lock, Timer, Check,
+  Upload, VideoPlay, Delete, Loading
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
 
-const activeMenu = ref('home')
+const activeMenu = ref('info')
 
 const originalUsername = ref('')
 
@@ -383,15 +280,8 @@ const userInfo = ref({
   avatar: '',
   gender: 'secret',
   birthday: '',
-  signature: '',
-  level: 4,
-  experience: 6000,
-  maxExperience: 10800,
-  coins: 426.1,
-  gold: 0
+  signature: ''
 })
-
-const userInfoFormRef = ref<InstanceType<typeof ElForm> | null>(null)
 
 const userInfoRules = {
   username: [
@@ -400,20 +290,7 @@ const userInfoRules = {
   ]
 }
 
-const levelPercentage = computed(() => {
-  return Math.round((userInfo.value.experience / userInfo.value.maxExperience) * 100)
-})
-
-const formatProgress = () => {
-  return `${userInfo.value.experience} / ${userInfo.value.maxExperience}`
-}
-
-const dailyRewards = ref({
-  login: true,
-  watch: true,
-  coin: 25,
-  share: false
-})
+const userInfoFormRef = ref<InstanceType<typeof ElForm> | null>(null)
 
 const passwordForm = ref({
   currentPassword: '',
@@ -463,26 +340,12 @@ const followers = ref<any[]>([])
 const avatarFile = ref<File | null>(null)
 const previewUrl = ref('')
 
-const inviteLink = computed(() => {
-  return `http://localhost:5173/register?invite=${userInfo.value.username}`
-})
-
 const handleMenuSelect = (index: string) => {
   activeMenu.value = index
   if (index === 'follows') {
     loadFollowings()
   } else if (index === 'followers') {
     loadFollowers()
-  }
-}
-
-const claimReward = (type: string) => {
-  if (type === 'login' && !dailyRewards.value.login) {
-    dailyRewards.value.login = true
-    ElMessage.success('领取成功，获得5经验值')
-  } else if (type === 'watch' && !dailyRewards.value.watch) {
-    dailyRewards.value.watch = true
-    ElMessage.success('领取成功，获得5经验值')
   }
 }
 
@@ -600,11 +463,6 @@ const changePassword = async () => {
       }
     }
   })
-}
-
-const copyInviteLink = () => {
-  navigator.clipboard.writeText(inviteLink.value)
-  ElMessage.success('链接已复制到剪贴板')
 }
 
 const handleRecordTabChange = (tab: string) => {
@@ -925,91 +783,6 @@ onMounted(() => {
   font-weight: 600;
 }
 
-.user-info-section {
-  background-color: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-}
-
-.user-details {
-  flex: 1;
-  margin-left: 20px;
-}
-
-.username-section {
-  display: flex;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.username {
-  margin: 0 10px 0 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.member-status {
-  background-color: #f0f9eb;
-  color: #67c23a;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 12px;
-}
-
-.level-section {
-  margin-bottom: 10px;
-  display: flex;
-  align-items: center;
-}
-
-.level {
-  display: inline-block;
-  background-color: #fde2e2;
-  color: #f56c6c;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 12px;
-  margin-right: 10px;
-}
-
-.level-section :deep(.el-progress) {
-  flex: 1;
-}
-
-.coins-section {
-  display: flex;
-  gap: 20px;
-}
-
-.coin-item {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 14px;
-  color: #606266;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 10px;
-}
-
-.daily-rewards-section {
-  background-color: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
 .section-header {
   display: flex;
   align-items: center;
@@ -1021,79 +794,6 @@ onMounted(() => {
   font-size: 16px;
   font-weight: 600;
   color: #303133;
-}
-
-.rewards-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-}
-
-.reward-item {
-  text-align: center;
-  padding: 20px;
-  border-radius: 8px;
-  background-color: #f9f9f9;
-  transition: all 0.3s;
-  cursor: pointer;
-}
-
-.reward-item:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.reward-item.completed .reward-icon {
-  background-color: #67c23a;
-  color: #fff;
-}
-
-.reward-icon {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background-color: #409eff;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 10px;
-  font-size: 24px;
-}
-
-.exp-text {
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.reward-title {
-  font-size: 14px;
-  color: #303133;
-  margin-bottom: 5px;
-}
-
-.reward-status {
-  font-size: 12px;
-  color: #909399;
-}
-
-.achievements-section {
-  background-color: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.achievements-content {
-  min-height: 200px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-}
-
-.empty-achievements {
-  text-align: center;
 }
 
 .info-form,
@@ -1394,10 +1094,6 @@ onMounted(() => {
   
   .main-content {
     padding: 20px;
-  }
-  
-  .rewards-grid {
-    grid-template-columns: repeat(2, 1fr);
   }
   
   .user-info {

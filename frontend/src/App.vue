@@ -50,10 +50,10 @@ const fetchUnreadCount = async () => {
       ])
       
       let total = 0
-      if (notificationRes.data.success) {
-        total += notificationRes.data.unreadCount
+      if (notificationRes.data.success && notificationRes.data.count !== undefined) {
+        total += notificationRes.data.count
       }
-      if (chatRes.data.success) {
+      if (chatRes.data.success && chatRes.data.unreadCount !== undefined) {
         total += chatRes.data.unreadCount
       }
       unreadCount.value = total
