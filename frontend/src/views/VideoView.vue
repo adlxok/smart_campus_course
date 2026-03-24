@@ -664,22 +664,19 @@ onMounted(async () => {
   }
   
   try {
-    const response = await fetch(`http://localhost:8080/api/video/list?pageNum=1&pageSize=100`)
+    const response = await fetch(`http://localhost:8080/api/video/detail/${videoId}`)
     const data = await response.json()
     
-    if (data.success) {
-      const foundVideo = data.data.find((v: Video) => v.id === Number(videoId))
-      if (foundVideo) {
-        video.value = foundVideo
-        incrementViewCount(foundVideo.id)
-        loadComments(foundVideo.id)
-        loadInteractionInfo(foundVideo.id)
-        loadFollowStatus(foundVideo.userId)
-        loadVideoTags(foundVideo.id)
-      } else {
-        ElMessage.error('视频不存在')
-        router.push('/')
-      }
+    if (data.success && data.data) {
+      video.value = data.data
+      incrementViewCount(data.data.id)
+      loadComments(data.data.id)
+      loadInteractionInfo(data.data.id)
+      loadFollowStatus(data.data.userId)
+      loadVideoTags(data.data.id)
+    } else {
+      ElMessage.error(data.message || '视频不存在')
+      router.push('/')
     }
   } catch (error) {
     ElMessage.error('加载视频失败')

@@ -86,6 +86,23 @@ public class VideoController {
         return response;
     }
     
+    @GetMapping("/detail/{id}")
+    public Map<String, Object> getVideoDetail(@PathVariable Long id) {
+        Map<String, Object> response = new HashMap<>();
+        
+        Video video = videoMapper.selectById(id);
+        
+        if (video == null) {
+            response.put("success", false);
+            response.put("message", "视频不存在");
+            return response;
+        }
+        
+        response.put("success", true);
+        response.put("data", video);
+        return response;
+    }
+    
     @GetMapping("/my")
     public Map<String, Object> getMyVideos(@RequestHeader("Authorization") String authorization,
                                            @RequestParam(defaultValue = "1") Integer pageNum,
