@@ -266,4 +266,136 @@ public class VideoController {
         response.put("success", true);
         return response;
     }
+    
+    @GetMapping("/recommend")
+    public Map<String, Object> getRecommendations(@RequestParam Long userId,
+                                                   @RequestParam(defaultValue = "10") int limit) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            String mlServiceUrl = "http://127.0.0.1:5001/api/recommend?userId=" + userId + "&limit=" + limit;
+            
+            java.net.URL url = new java.net.URL(mlServiceUrl);
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(30000);
+            
+            int responseCode = conn.getResponseCode();
+            if (responseCode == 200) {
+                java.io.BufferedReader in = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(conn.getInputStream(), "UTF-8"));
+                StringBuilder content = new StringBuilder();
+                String inputLine;
+                while ((inputLine = in.readLine()) != null) {
+                    content.append(inputLine);
+                }
+                in.close();
+                
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                Map<String, Object> mlResponse = mapper.readValue(content.toString(), Map.class);
+                
+                response.put("success", mlResponse.get("success"));
+                response.put("data", mlResponse.get("data"));
+                response.put("message", mlResponse.get("message"));
+                response.put("userTags", mlResponse.get("userTags"));
+            } else {
+                response.put("success", false);
+                response.put("message", "推荐服务暂时不可用");
+            }
+            conn.disconnect();
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "获取推荐失败: " + e.getMessage());
+        }
+        return response;
+    }
+    
+    @PostMapping("/features/compute")
+    public Map<String, Object> computeFeatures() {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            String mlServiceUrl = "http://127.0.0.1:5001/api/features/compute";
+            
+            java.net.URL url = new java.net.URL(mlServiceUrl);
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(120000);
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.getOutputStream().write("{}".getBytes());
+            
+            int responseCode = conn.getResponseCode();
+            if (responseCode == 200) {
+                java.io.BufferedReader in = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(conn.getInputStream(), "UTF-8"));
+                StringBuilder content = new StringBuilder();
+                String inputLine;
+                while ((inputLine = in.readLine()) != null) {
+                    content.append(inputLine);
+                }
+                in.close();
+                
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                Map<String, Object> mlResponse = mapper.readValue(content.toString(), Map.class);
+                
+                response.put("success", mlResponse.get("success"));
+                response.put("message", mlResponse.get("message"));
+                response.put("total", mlResponse.get("total"));
+                response.put("saved", mlResponse.get("saved"));
+            } else {
+                response.put("success", false);
+                response.put("message", "特征计算服务暂时不可用");
+            }
+            conn.disconnect();
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "特征计算失败: " + e.getMessage());
+        }
+        return response;
+    }
+    
+    @PostMapping("/features/compute/{videoId}")
+    public Map<String, Object> computeSingleFeature(@PathVariable Long videoId) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            String mlServiceUrl = "http://127.0.0.1:5001/api/features/compute/" + videoId;
+            
+            java.net.URL url = new java.net.URL(mlServiceUrl);
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(60000);
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.getOutputStream().write("{}".getBytes());
+            
+            int responseCode = conn.getResponseCode();
+            if (responseCode == 200) {
+                java.io.BufferedReader in = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(conn.getInputStream(), "UTF-8"));
+                StringBuilder content = new StringBuilder();
+                String inputLine;
+                while ((inputLine = in.readLine()) != null) {
+                    content.append(inputLine);
+                }
+                in.close();
+                
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                Map<String, Object> mlResponse = mapper.readValue(content.toString(), Map.class);
+                
+                response.put("success", mlResponse.get("success"));
+                response.put("message", mlResponse.get("message"));
+                response.put("videoId", mlResponse.get("videoId"));
+            } else {
+                response.put("success", false);
+                response.put("message", "特征计算服务暂时不可用");
+            }
+            conn.disconnect();
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "特征计算失败: " + e.getMessage());
+        }
+        return response;
+    }
 }

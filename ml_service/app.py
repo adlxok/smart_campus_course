@@ -734,6 +734,15 @@ def run_import_task(task):
             
             import_single_video(video_data, task, videos_dir, covers_dir, session=shared_session)
         
+        if task.success_count > 0:
+            task.add_log("=" * 50)
+            task.add_log("开始计算新导入视频的特征向量...")
+            try:
+                compute_features_internal()
+                task.add_log("特征向量计算完成")
+            except Exception as fe:
+                task.add_log(f"特征计算失败: {fe}")
+        
         task.status = "completed"
         task.progress = "导入完成"
         task.result = {
@@ -1565,6 +1574,475 @@ def model_info():
             'violationThreshold': VIOLATION_THRESHOLD,
         }
     })
+
+def get_user_favorite_tags(user_id):
+    try:
+        conn = pymysql.connect(**db_config)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT DISTINCT t.id, t.name, COUNT(*) as weight
+            FROM video_favorite vf
+            JOIN video_tag vt ON vf.video_id = vt.video_id
+            JOIN tag t ON vt.tag_id = t.id
+            WHERE vf.user_id = %s
+            GROUP BY t.id, t.name
+            ORDER BY weight DESC
+        """, (user_id,))
+        
+        tags = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        return [{'id': row[0], 'name': row[1], 'weight': row[2]} for row in tags]
+    except Exception as e:
+        print(f"获取用户收藏标签失败: {e}")
+        return []
+
+def get_all_videos_with_tags():
+    try:
+        conn = pymysql.connect(**db_config)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT v.id, v.title, v.description, v.view_count, v.cover_url, v.username,
+                   GROUP_CONCAT(t.name) as tags
+            FROM video v
+            LEFT JOIN video_tag vt ON v.id = vt.video_id
+            LEFT JOIN tag t ON vt.tag_id = t.id
+            GROUP BY v.id, v.title, v.description, v.view_count, v.cover_url, v.username
+        """)
+        
+        videos = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        return [{
+            'id': row[0],
+            'title': row[1],
+            'description': row[2] or '',
+            'viewCount': row[3],
+            'coverUrl': row[4],
+            'username': row[5],
+            'tags': row[6] or ''
+        } for row in videos]
+    except Exception as e:
+        print(f"获取视频列表失败: {e}")
+        return []
+
+def get_user_favorited_video_ids(user_id):
+    try:
+        conn = pymysql.connect(**db_config)
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT video_id FROM video_favorite WHERE user_id = %s", (user_id,))
+        
+        video_ids = [row[0] for row in cursor.fetchall()]
+        cursor.close()
+        conn.close()
+        
+        return set(video_ids)
+    except Exception as e:
+        print(f"获取用户已收藏视频失败: {e}")
+        return set()
+
+def get_video_features_from_db():
+    try:
+        conn = pymysql.connect(**db_config)
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT video_id, feature_vector, tags FROM video_feature")
+        
+        features = {}
+        for row in cursor.fetchall():
+            video_id = row[0]
+            feature_vector = json.loads(row[1]) if row[1] else None
+            tags = row[2] or ''
+            if feature_vector:
+                features[video_id] = {
+                    'vector': feature_vector,
+                    'tags': tags
+                }
+        
+        cursor.close()
+        conn.close()
+        
+        return features
+    except Exception as e:
+        print(f"获取视频特征失败: {e}")
+        return {}
+
+def save_video_feature_to_db(video_id, feature_vector, tags):
+    try:
+        conn = pymysql.connect(**db_config)
+        cursor = conn.cursor()
+        
+        feature_json = json.dumps(feature_vector.tolist())
+        
+        cursor.execute("""
+            INSERT INTO video_feature (video_id, feature_vector, tags)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE feature_vector = VALUES(feature_vector), tags = VALUES(tags)
+        """, (video_id, feature_json, tags))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"保存视频特征失败: {e}")
+        return False
+
+def get_video_by_id(video_id):
+    try:
+        conn = pymysql.connect(**db_config)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT v.id, v.title, v.description, v.view_count, v.cover_url, v.username,
+                   GROUP_CONCAT(t.name) as tags
+            FROM video v
+            LEFT JOIN video_tag vt ON v.id = vt.video_id
+            LEFT JOIN tag t ON vt.tag_id = t.id
+            WHERE v.id = %s
+            GROUP BY v.id, v.title, v.description, v.view_count, v.cover_url, v.username
+        """, (video_id,))
+        
+        row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if row:
+            return {
+                'id': row[0],
+                'title': row[1],
+                'description': row[2] or '',
+                'viewCount': row[3],
+                'coverUrl': row[4],
+                'username': row[5],
+                'tags': row[6] or ''
+            }
+        return None
+    except Exception as e:
+        print(f"获取视频失败: {e}")
+        return None
+
+def check_feature_exists(video_id):
+    try:
+        conn = pymysql.connect(**db_config)
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM video_feature WHERE video_id = %s", (video_id,))
+        exists = cursor.fetchone() is not None
+        cursor.close()
+        conn.close()
+        return exists
+    except Exception as e:
+        print(f"检查特征是否存在失败: {e}")
+        return False
+
+def compute_features_internal():
+    all_videos = get_all_videos_with_tags()
+    
+    if not all_videos:
+        return 0
+    
+    videos_to_compute = []
+    for video in all_videos:
+        if not check_feature_exists(video['id']):
+            videos_to_compute.append(video)
+    
+    if not videos_to_compute:
+        return 0
+    
+    video_data = []
+    for video in videos_to_compute:
+        content = f"{video['title']} {video['description']} {video['tags']}"
+        words = chinese_tokenize(content)
+        words_str = ' '.join(words)
+        video_data.append((str(video['id']), words_str))
+    
+    spark_session, _ = init_spark()
+    
+    from pyspark.ml.feature import CountVectorizer, IDF
+    from pyspark.sql.functions import split, col
+    import numpy as np
+    
+    schema = StructType([
+        StructField("video_id", StringType(), True),
+        StructField("words_str", StringType(), True)
+    ])
+    df = spark_session.createDataFrame(video_data, schema)
+    df = df.withColumn("words", split(col("words_str"), " "))
+    
+    cv = CountVectorizer(inputCol="words", outputCol="rawFeatures", vocabSize=5000)
+    cv_model = cv.fit(df)
+    df = cv_model.transform(df)
+    
+    idf = IDF(inputCol="rawFeatures", outputCol="features")
+    idf_model = idf.fit(df)
+    df = idf_model.transform(df)
+    
+    video_features = df.select("video_id", "features").collect()
+    
+    saved_count = 0
+    for row in video_features:
+        video_id = int(row["video_id"])
+        features = row["features"].toArray()
+        
+        video_info = next((v for v in videos_to_compute if v['id'] == video_id), None)
+        tags = video_info['tags'] if video_info else ''
+        
+        if save_video_feature_to_db(video_id, features, tags):
+            saved_count += 1
+    
+    return saved_count
+
+@app.route('/api/features/compute', methods=['POST'])
+def compute_features():
+    try:
+        all_videos = get_all_videos_with_tags()
+        
+        if not all_videos:
+            return jsonify({
+                'success': True,
+                'message': '没有视频需要计算特征'
+            })
+        
+        videos_to_compute = []
+        for video in all_videos:
+            if not check_feature_exists(video['id']):
+                videos_to_compute.append(video)
+        
+        if not videos_to_compute:
+            return jsonify({
+                'success': True,
+                'message': '所有视频特征已存在，无需重新计算',
+                'total': len(all_videos),
+                'saved': 0
+            })
+        
+        video_data = []
+        for video in videos_to_compute:
+            content = f"{video['title']} {video['description']} {video['tags']}"
+            words = chinese_tokenize(content)
+            words_str = ' '.join(words)
+            video_data.append((str(video['id']), words_str))
+        
+        spark_session, _ = init_spark()
+        
+        from pyspark.ml.feature import CountVectorizer, IDF
+        from pyspark.sql.functions import split, col
+        import numpy as np
+        
+        schema = StructType([
+            StructField("video_id", StringType(), True),
+            StructField("words_str", StringType(), True)
+        ])
+        df = spark_session.createDataFrame(video_data, schema)
+        df = df.withColumn("words", split(col("words_str"), " "))
+        
+        cv = CountVectorizer(inputCol="words", outputCol="rawFeatures", vocabSize=5000)
+        cv_model = cv.fit(df)
+        df = cv_model.transform(df)
+        
+        idf = IDF(inputCol="rawFeatures", outputCol="features")
+        idf_model = idf.fit(df)
+        df = idf_model.transform(df)
+        
+        video_features = df.select("video_id", "features").collect()
+        
+        saved_count = 0
+        for row in video_features:
+            video_id = int(row["video_id"])
+            features = row["features"].toArray()
+            
+            video_info = next((v for v in videos_to_compute if v['id'] == video_id), None)
+            tags = video_info['tags'] if video_info else ''
+            
+            if save_video_feature_to_db(video_id, features, tags):
+                saved_count += 1
+        
+        return jsonify({
+            'success': True,
+            'message': f'成功计算并保存了 {saved_count} 个新视频特征',
+            'total': len(all_videos),
+            'newCount': len(videos_to_compute),
+            'saved': saved_count
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/features/compute/<int:video_id>', methods=['POST'])
+def compute_single_feature(video_id):
+    try:
+        video = get_video_by_id(video_id)
+        
+        if not video:
+            return jsonify({
+                'success': False,
+                'error': f'视频 {video_id} 不存在'
+            }), 404
+        
+        content = f"{video['title']} {video['description']} {video['tags']}"
+        words = chinese_tokenize(content)
+        words_str = ' '.join(words)
+        
+        spark_session, _ = init_spark()
+        
+        from pyspark.ml.feature import CountVectorizer, IDF
+        from pyspark.sql.functions import split, col
+        import numpy as np
+        
+        schema = StructType([
+            StructField("video_id", StringType(), True),
+            StructField("words_str", StringType(), True)
+        ])
+        df = spark_session.createDataFrame([(str(video_id), words_str)], schema)
+        df = df.withColumn("words", split(col("words_str"), " "))
+        
+        cv = CountVectorizer(inputCol="words", outputCol="rawFeatures", vocabSize=5000)
+        cv_model = cv.fit(df)
+        df = cv_model.transform(df)
+        
+        idf = IDF(inputCol="rawFeatures", outputCol="features")
+        idf_model = idf.fit(df)
+        df = idf_model.transform(df)
+        
+        result = df.select("features").collect()[0]
+        features = result["features"].toArray()
+        
+        if save_video_feature_to_db(video_id, features, video['tags']):
+            return jsonify({
+                'success': True,
+                'message': f'视频 {video_id} 特征计算成功',
+                'videoId': video_id
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': '保存特征失败'
+            }), 500
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/recommend', methods=['GET'])
+def recommend_videos():
+    try:
+        user_id = request.args.get('userId', type=int)
+        limit = request.args.get('limit', 10, type=int)
+        
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'error': '请提供userId参数'
+            }), 400
+        
+        user_tags = get_user_favorite_tags(user_id)
+        
+        if not user_tags:
+            return jsonify({
+                'success': True,
+                'data': [],
+                'message': '用户暂无收藏记录，无法生成个性化推荐'
+            })
+        
+        video_features = get_video_features_from_db()
+        
+        if not video_features:
+            return jsonify({
+                'success': True,
+                'data': [],
+                'message': '视频特征尚未计算，请先运行特征计算'
+            })
+        
+        favorited_ids = get_user_favorited_video_ids(user_id)
+        
+        import numpy as np
+        
+        tag_names = [tag['name'] for tag in user_tags]
+        tag_weights = [tag['weight'] for tag in user_tags]
+        
+        all_tags = set()
+        for vf in video_features.values():
+            if vf['tags']:
+                for tag in vf['tags'].split(','):
+                    all_tags.add(tag.strip())
+        
+        tag_to_idx = {tag: idx for idx, tag in enumerate(all_tags)}
+        vocab_size = len(all_tags)
+        
+        user_vector = np.zeros(vocab_size)
+        for tag_name, weight in zip(tag_names, tag_weights):
+            if tag_name in tag_to_idx:
+                user_vector[tag_to_idx[tag_name]] = weight
+        user_vector = user_vector / (np.linalg.norm(user_vector) + 1e-10)
+        
+        scores = []
+        for video_id, vf in video_features.items():
+            if video_id in favorited_ids:
+                continue
+            
+            feature_vector = np.array(vf['vector'])
+            norm = np.linalg.norm(feature_vector)
+            if norm > 0:
+                feature_vector = feature_vector / norm
+                
+                video_tag_vector = np.zeros(vocab_size)
+                if vf['tags']:
+                    for tag in vf['tags'].split(','):
+                        tag = tag.strip()
+                        if tag in tag_to_idx:
+                            video_tag_vector[tag_to_idx[tag]] = 1
+                video_tag_vector = video_tag_vector / (np.linalg.norm(video_tag_vector) + 1e-10)
+                
+                similarity = np.dot(user_vector, video_tag_vector)
+                scores.append((video_id, float(similarity)))
+        
+        scores.sort(key=lambda x: x[1], reverse=True)
+        top_video_ids = [s[0] for s in scores[:limit]]
+        
+        all_videos = get_all_videos_with_tags()
+        video_map = {v['id']: v for v in all_videos}
+        
+        recommended = []
+        for vid in top_video_ids:
+            if vid in video_map:
+                v = video_map[vid]
+                recommended.append({
+                    'id': v['id'],
+                    'title': v['title'],
+                    'coverUrl': v['coverUrl'],
+                    'username': v['username'],
+                    'viewCount': v['viewCount'],
+                    'tags': v['tags']
+                })
+        
+        return jsonify({
+            'success': True,
+            'data': recommended,
+            'userTags': tag_names[:5],
+            'message': f'基于您的收藏兴趣推荐了{len(recommended)}个视频'
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 if __name__ == '__main__':
     print("正在初始化Spark和加载优化版模型...")

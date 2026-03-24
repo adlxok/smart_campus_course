@@ -220,7 +220,7 @@ onMounted(async () => {
 
 const handleCategoryChange = () => {
   if (activeCategory.value === -1) {
-    videos.value = []
+    loadRecommendations()
   } else {
     loadVideos()
   }
@@ -230,6 +230,47 @@ onBeforeUnmount(() => {
   window.removeEventListener('videoSearch', handleSearch)
 })
 
+const loadRecommendations = async () => {
+  loading.value = true
+  try {
+    if (!userInfo.value.id) {
+      videos.value = []
+      ElMessage.warning('请先登录以获取个性化推荐')
+      return
+    }
+    
+    const response = await fetch(`http://localhost:8080/api/video/recommend?userId=${userInfo.value.id}&limit=10`)
+    const data = await response.json()
+    
+    if (data.success && data.data) {
+      videos.value = data.data.map((v: any) => ({
+        id: v.id,
+        title: v.title,
+        description: '',
+        videoUrl: '',
+        coverUrl: v.coverUrl,
+        userId: 0,
+        username: v.username,
+        viewCount: v.viewCount,
+        createTime: new Date().toISOString()
+      }))
+      if (data.message) {
+        ElMessage.success(data.message)
+      }
+    } else {
+      videos.value = []
+      if (data.message) {
+        ElMessage.info(data.message)
+      }
+    }
+  } catch (error) {
+    ElMessage.error('获取推荐失败')
+    videos.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
 const loadVideos = async (keyword: string = '') => {
   loading.value = true
   try {
@@ -237,9 +278,7 @@ const loadVideos = async (keyword: string = '') => {
     if (keyword) {
       url += `&keyword=${encodeURIComponent(keyword)}`
     }
-    if (activeCategory.value === -1) {
-      url += '&sortBy=viewCount&sortOrder=desc'
-    } else if (activeCategory.value && activeCategory.value !== 0) {
+    if (activeCategory.value && activeCategory.value !== 0) {
       url += `&categoryId=${activeCategory.value}`
     }
     const response = await fetch(url)
