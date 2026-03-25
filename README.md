@@ -22,12 +22,12 @@
 
 ### 首页
 
-鼠标滚轮下滑刷新
-AI智能小助手
+* 鼠标滚轮下滑刷新
+* AI智能小助手
 <img width="1566" height="948" alt="image" src="https://github.com/user-attachments/assets/2fd7a0d3-bc41-440a-9921-0aeea243317a" />
 
-根据收藏推荐十条视频
-按分类筛选
+* 根据收藏推荐十条视频
+* 按分类筛选
 <img width="1207" height="943" alt="image" src="https://github.com/user-attachments/assets/14bdef52-7b92-460a-b4f9-86df0cb41f9c" />
 
 视频点赞收藏评论
