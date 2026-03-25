@@ -83,4 +83,5 @@ D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\s
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\Conversation.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\entity\Video.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\interceptor\PermissionInterceptor.java
+D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\controller\AiAssistantController.java
 D:\A_Graduation_Project\project\p2_0\backend\src\main\java\com\example\backend\mapper\VideoLikeMapper.java

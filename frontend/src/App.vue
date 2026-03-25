@@ -3,6 +3,7 @@ import { ref, onMounted, computed, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Search, Bell } from '@element-plus/icons-vue'
 import axios from 'axios'
+import AiAssistant from './components/AiAssistant.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -166,6 +167,7 @@ const handleSearch = () => {
     <div class="main">
       <router-view />
     </div>
+    <AiAssistant />
   </div>
 </template>
 

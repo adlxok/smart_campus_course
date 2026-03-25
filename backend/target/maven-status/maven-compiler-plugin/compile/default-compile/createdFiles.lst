@@ -1,5 +1,6 @@
 com\example\backend\mapper\NotificationMapper.class
 com\example\backend\mapper\SystemNotificationMapper.class
+com\example\backend\controller\AiAssistantController.class
 com\example\backend\entity\UserNotification.class
 com\example\backend\mapper\VideoMapper.class
 com\example\backend\controller\AuthController.class

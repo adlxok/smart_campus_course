@@ -2044,6 +2044,7 @@ def recommend_videos():
             'error': str(e)
         }), 500
 
+
 if __name__ == '__main__':
     print("正在初始化Spark和加载优化版模型...")
     init_spark()

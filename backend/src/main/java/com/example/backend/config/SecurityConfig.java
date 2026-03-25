@@ -40,6 +40,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             .antMatchers("/api/creator/**").permitAll()
             .antMatchers("/api/banner/**").permitAll()
             .antMatchers("/api/role/**").permitAll()
+            .antMatchers("/api/ai-assistant/**").permitAll()
             .antMatchers("/uploads/**").permitAll()
             .antMatchers("/backend/image/**").permitAll()
             .antMatchers("/api/image/**").permitAll()
