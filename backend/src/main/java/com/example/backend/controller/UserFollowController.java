@@ -22,6 +22,9 @@ import java.util.ArrayList;
 public class UserFollowController {
     
     @Autowired
+    private JwtUtil jwtUtil;
+    
+    @Autowired
     private UserFollowMapper userFollowMapper;
     
     @Autowired
@@ -40,7 +43,7 @@ public class UserFollowController {
         
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
             QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
             userQueryWrapper.eq("username", username);
@@ -107,7 +110,7 @@ public class UserFollowController {
             
             if (authorization != null && authorization.startsWith("Bearer ")) {
                 String token = authorization.substring(7);
-                String username = JwtUtil.getUsernameFromToken(token);
+                String username = jwtUtil.getUsernameFromToken(token);
                 
                 QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
                 userQueryWrapper.eq("username", username);
@@ -164,7 +167,7 @@ public class UserFollowController {
         
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
             QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
             userQueryWrapper.eq("username", username);
@@ -207,7 +210,7 @@ public class UserFollowController {
         
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
             QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
             userQueryWrapper.eq("username", username);

@@ -3,6 +3,7 @@ import { ref, onMounted, computed, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Search, Bell } from '@element-plus/icons-vue'
 import axios from 'axios'
+import AiAssistant from './components/AiAssistant.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -50,10 +51,10 @@ const fetchUnreadCount = async () => {
       ])
       
       let total = 0
-      if (notificationRes.data.success) {
-        total += notificationRes.data.unreadCount
+      if (notificationRes.data.success && notificationRes.data.count !== undefined) {
+        total += notificationRes.data.count
       }
-      if (chatRes.data.success) {
+      if (chatRes.data.success && chatRes.data.unreadCount !== undefined) {
         total += chatRes.data.unreadCount
       }
       unreadCount.value = total
@@ -166,6 +167,7 @@ const handleSearch = () => {
     <div class="main">
       <router-view />
     </div>
+    <AiAssistant />
   </div>
 </template>
 

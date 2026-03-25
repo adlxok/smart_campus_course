@@ -8,7 +8,7 @@
     </div>
     
     <div class="video-container" v-if="video">
-      <video ref="videoPlayer" :src="video.videoUrl" controls autoplay class="main-video"></video>
+      <video ref="videoPlayer" :src="formatVideoUrl(video.videoUrl)" controls autoplay class="main-video"></video>
       
       <div class="video-info">
         <h1 class="video-title">{{ video.title }}</h1>
@@ -16,7 +16,7 @@
         <div class="video-meta">
           <div class="author-section">
             <div class="author-info" @click="goToProfile">
-              <el-avatar :size="44" :src="video.coverUrl || defaultCover">
+              <el-avatar :size="44" :src="formatImageUrl(video.coverUrl) || defaultCover">
                 {{ video.username.charAt(0).toUpperCase() }}
               </el-avatar>
               <div class="author-detail">
@@ -432,6 +432,28 @@ const submitting = ref(false)
 const replyTo = ref<Comment | null>(null)
 const defaultCover = 'http://localhost:8080/backend/image/default_image/defaultImage.png'
 
+const formatImageUrl = (url: string) => {
+  if (!url) return ''
+  if (url.startsWith('hdfs://')) {
+    return `http://localhost:8080/api/image/proxy?url=${encodeURIComponent(url)}`
+  }
+  if (url.startsWith('/covers/') || url.startsWith('/videos/')) {
+    return `http://localhost:8080/api/image/proxy?url=${encodeURIComponent(url)}`
+  }
+  return url
+}
+
+const formatVideoUrl = (url: string) => {
+  if (!url) return ''
+  if (url.startsWith('hdfs://')) {
+    return `http://localhost:8080/api/video/proxy?url=${encodeURIComponent(url)}`
+  }
+  if (url.startsWith('/videos/')) {
+    return `http://localhost:8080/api/video/proxy?url=${encodeURIComponent(url)}`
+  }
+  return url
+}
+
 const userInfo = ref<UserInfo>({
   id: 0,
   username: '',
@@ -642,22 +664,19 @@ onMounted(async () => {
   }
   
   try {
-    const response = await fetch(`http://localhost:8080/api/video/list?pageNum=1&pageSize=100`)
+    const response = await fetch(`http://localhost:8080/api/video/detail/${videoId}`)
     const data = await response.json()
     
-    if (data.success) {
-      const foundVideo = data.data.find((v: Video) => v.id === Number(videoId))
-      if (foundVideo) {
-        video.value = foundVideo
-        incrementViewCount(foundVideo.id)
-        loadComments(foundVideo.id)
-        loadInteractionInfo(foundVideo.id)
-        loadFollowStatus(foundVideo.userId)
-        loadVideoTags(foundVideo.id)
-      } else {
-        ElMessage.error('视频不存在')
-        router.push('/')
-      }
+    if (data.success && data.data) {
+      video.value = data.data
+      incrementViewCount(data.data.id)
+      loadComments(data.data.id)
+      loadInteractionInfo(data.data.id)
+      loadFollowStatus(data.data.userId)
+      loadVideoTags(data.data.id)
+    } else {
+      ElMessage.error(data.message || '视频不存在')
+      router.push('/')
     }
   } catch (error) {
     ElMessage.error('加载视频失败')

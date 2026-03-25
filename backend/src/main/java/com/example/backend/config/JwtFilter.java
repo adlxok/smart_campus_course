@@ -1,5 +1,6 @@
 package com.example.backend.config;
 
+import com.example.backend.entity.Role;
 import com.example.backend.entity.User;
 import com.example.backend.mapper.UserMapper;
 import com.example.backend.utils.JwtUtil;
@@ -15,13 +16,17 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import java.util.ArrayList;
+import java.util.List;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
     
     @Autowired
     private UserMapper userMapper;
+    
+    @Autowired
+    private JwtUtil jwtUtil;
     
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
@@ -30,16 +35,25 @@ public class JwtFilter extends OncePerRequestFilter {
             
             if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
                 String token = authorizationHeader.substring(7);
-                String username = JwtUtil.getUsernameFromToken(token);
+                String username = jwtUtil.getUsernameFromToken(token);
                 
                 if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-                    queryWrapper.eq("username", username);
-                    User user = userMapper.selectOne(queryWrapper);
-                    if (user != null && JwtUtil.validateToken(token)) {
+                    User user = userMapper.selectByUsername(username);
+                    if (user != null && jwtUtil.validateToken(token)) {
+                        List<Role> roles = userMapper.selectRolesByUserId(user.getId());
+                        List<String> roleCodes = new ArrayList<>();
+                        for (Role role : roles) {
+                            roleCodes.add(role.getCode());
+                        }
+                        
+                        String[] roleArray = roleCodes.toArray(new String[0]);
+                        if (roleArray.length == 0) {
+                            roleArray = new String[]{"USER"};
+                        }
+                        
                         UserDetails userDetails = org.springframework.security.core.userdetails.User.withUsername(user.getUsername())
                                 .password(user.getPassword())
-                                .roles(user.getRole())
+                                .roles(roleArray)
                                 .build();
                         
                         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
@@ -50,7 +64,6 @@ public class JwtFilter extends OncePerRequestFilter {
                 }
             }
         } catch (Exception e) {
-            // token解析失败，继续执行filter chain，不影响正常请求
         }
         
         chain.doFilter(request, response);

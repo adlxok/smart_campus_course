@@ -24,6 +24,9 @@ import java.util.ArrayList;
 public class VideoInteractionController {
     
     @Autowired
+    private JwtUtil jwtUtil;
+    
+    @Autowired
     private VideoLikeMapper videoLikeMapper;
     
     @Autowired
@@ -45,7 +48,7 @@ public class VideoInteractionController {
         
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
             QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
             userQueryWrapper.eq("username", username);
@@ -100,7 +103,7 @@ public class VideoInteractionController {
         
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
             QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
             userQueryWrapper.eq("username", username);
@@ -162,7 +165,7 @@ public class VideoInteractionController {
             
             if (authorization != null && authorization.startsWith("Bearer ")) {
                 String token = authorization.substring(7);
-                String username = JwtUtil.getUsernameFromToken(token);
+                String username = jwtUtil.getUsernameFromToken(token);
                 
                 QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
                 userQueryWrapper.eq("username", username);
@@ -193,7 +196,7 @@ public class VideoInteractionController {
         
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
             QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
             userQueryWrapper.eq("username", username);
@@ -245,7 +248,7 @@ public class VideoInteractionController {
         
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
             QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
             userQueryWrapper.eq("username", username);

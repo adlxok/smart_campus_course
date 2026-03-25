@@ -199,12 +199,12 @@
             </el-button>
           </div>
           <div class="videos-section">
-            <el-empty v-if="myVideos.length === 0" description="暂无上传视频" />
+            <el-empty v-if="myVideos.length === 0 && !myVideosLoading" description="暂无上传视频" />
             <el-row :gutter="20" v-else>
               <el-col :xs="24" :sm="12" :md="8" :lg="6" v-for="video in myVideos" :key="video.id">
                 <el-card shadow="hover" class="video-card" @click="playVideo(video)">
                   <div class="video-cover">
-                    <img :src="video.coverUrl || defaultCover" alt="视频封面" />
+                    <img :src="formatImageUrl(video.coverUrl) || defaultCover" alt="视频封面" />
                     <div class="play-overlay">
                       <el-icon :size="30"><VideoPlay /></el-icon>
                     </div>
@@ -220,16 +220,133 @@
                 </el-card>
               </el-col>
             </el-row>
+            <div ref="myVideosSentinelRef" class="scroll-sentinel"></div>
+            <div v-if="myVideosLoading" class="loading-more">
+              <el-icon class="is-loading"><Loading /></el-icon>
+              <span>加载中...</span>
+            </div>
+            <div v-if="myVideosNoMore && myVideos.length > 0" class="no-more">
+              没有更多视频了
+            </div>
           </div>
         </div>
         
         <div v-else-if="activeMenu === 'analytics'" class="content-panel">
           <div class="panel-header">
             <h3>数据分析</h3>
+            <el-radio-group v-model="analyticsDays" @change="loadAnalyticsData" size="small">
+              <el-radio-button :value="7">近7天</el-radio-button>
+              <el-radio-button :value="30">近30天</el-radio-button>
+              <el-radio-button :value="90">近90天</el-radio-button>
+            </el-radio-group>
           </div>
-          <div class="analytics-section">
-            <el-empty description="数据分析功能开发中..." />
+          
+          <div class="analytics-overview">
+            <el-row :gutter="20">
+              <el-col :span="4">
+                <el-card shadow="hover" class="analytics-stat-card">
+                  <div class="analytics-stat-value">{{ formatNumber(analyticsOverview.videoCount) }}</div>
+                  <div class="analytics-stat-label">视频数</div>
+                </el-card>
+              </el-col>
+              <el-col :span="4">
+                <el-card shadow="hover" class="analytics-stat-card">
+                  <div class="analytics-stat-value">{{ formatNumber(analyticsOverview.totalViews) }}</div>
+                  <div class="analytics-stat-label">总播放</div>
+                </el-card>
+              </el-col>
+              <el-col :span="4">
+                <el-card shadow="hover" class="analytics-stat-card">
+                  <div class="analytics-stat-value">{{ formatNumber(analyticsOverview.totalLikes) }}</div>
+                  <div class="analytics-stat-label">总点赞</div>
+                </el-card>
+              </el-col>
+              <el-col :span="4">
+                <el-card shadow="hover" class="analytics-stat-card">
+                  <div class="analytics-stat-value">{{ formatNumber(analyticsOverview.totalFavorites) }}</div>
+                  <div class="analytics-stat-label">总收藏</div>
+                </el-card>
+              </el-col>
+              <el-col :span="4">
+                <el-card shadow="hover" class="analytics-stat-card">
+                  <div class="analytics-stat-value">{{ formatNumber(analyticsOverview.totalComments) }}</div>
+                  <div class="analytics-stat-label">总评论</div>
+                </el-card>
+              </el-col>
+              <el-col :span="4">
+                <el-card shadow="hover" class="analytics-stat-card">
+                  <div class="analytics-stat-value">{{ formatNumber(analyticsOverview.fansCount) }}</div>
+                  <div class="analytics-stat-label">粉丝数</div>
+                </el-card>
+              </el-col>
+            </el-row>
           </div>
+          
+          <el-row :gutter="20" class="analytics-charts">
+            <el-col :span="16">
+              <el-card shadow="hover">
+                <template #header>
+                  <div class="card-header">
+                    <span>趋势分析</span>
+                    <el-radio-group v-model="trendType" size="small">
+                      <el-radio-button value="views">播放量</el-radio-button>
+                      <el-radio-button value="likes">点赞</el-radio-button>
+                      <el-radio-button value="favorites">收藏</el-radio-button>
+                      <el-radio-button value="comments">评论</el-radio-button>
+                    </el-radio-group>
+                  </div>
+                </template>
+                <div ref="trendChartRef" class="chart-container"></div>
+              </el-card>
+            </el-col>
+            <el-col :span="8">
+              <el-card shadow="hover">
+                <template #header>
+                  <span>分类分布</span>
+                </template>
+                <div ref="categoryChartRef" class="chart-container"></div>
+              </el-card>
+            </el-col>
+          </el-row>
+          
+          <el-card shadow="hover" class="top-videos-card">
+            <template #header>
+              <span>热门视频 TOP 10</span>
+            </template>
+            <el-table :data="topVideos" style="width: 100%">
+              <el-table-column type="index" label="排名" width="60" />
+              <el-table-column prop="title" label="视频标题" min-width="200">
+                <template #default="{ row }">
+                  <div class="video-title-cell clickable" @click="goToVideo(row.id)">{{ row.title }}</div>
+                </template>
+              </el-table-column>
+              <el-table-column prop="view_count" label="播放量" width="100" sortable>
+                <template #default="{ row }">
+                  {{ formatNumber(row.view_count) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="likes" label="点赞" width="80" sortable>
+                <template #default="{ row }">
+                  {{ formatNumber(row.likes) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="favorites" label="收藏" width="80" sortable>
+                <template #default="{ row }">
+                  {{ formatNumber(row.favorites) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="comments" label="评论" width="80" sortable>
+                <template #default="{ row }">
+                  {{ formatNumber(row.comments) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="create_time" label="发布时间" width="120">
+                <template #default="{ row }">
+                  {{ formatDate(row.create_time) }}
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-card>
         </div>
       </div>
     </div>
@@ -237,12 +354,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive } from 'vue'
+import { ref, onMounted, reactive, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
-  House, Upload, VideoPlay, DataAnalysis, View, Star, User, Plus 
+  House, Upload, VideoPlay, DataAnalysis, View, Star, User, Plus, Loading 
 } from '@element-plus/icons-vue'
+import * as echarts from 'echarts'
 
 interface Video {
   id: number;
@@ -294,10 +412,39 @@ const coverFile = ref<File | null>(null)
 const coverPreview = ref('')
 const uploading = ref(false)
 
+const myVideosPage = ref(1)
+const myVideosLoading = ref(false)
+const myVideosNoMore = ref(false)
+let myVideosObserver: IntersectionObserver | null = null
+const myVideosSentinelRef = ref<HTMLElement | null>(null)
+
+const analyticsDays = ref(7)
+const trendType = ref('views')
+const analyticsOverview = reactive({
+  videoCount: 0,
+  totalViews: 0,
+  totalLikes: 0,
+  totalFavorites: 0,
+  totalComments: 0,
+  fansCount: 0
+})
+const trendData = ref<any[]>([])
+const categoryDistribution = ref<any[]>([])
+const topVideos = ref<any[]>([])
+const trendChartRef = ref<HTMLElement | null>(null)
+const categoryChartRef = ref<HTMLElement | null>(null)
+let trendChart: echarts.ECharts | null = null
+let categoryChart: echarts.ECharts | null = null
+
 const handleMenuSelect = (index: string) => {
   activeMenu.value = index
   if (index === 'videos') {
     loadMyVideos()
+    setTimeout(() => {
+      setupMyVideosObserver()
+    }, 100)
+  } else if (index === 'analytics') {
+    loadAnalyticsData()
   }
 }
 
@@ -412,10 +559,22 @@ const submitVideo = async () => {
   }
 }
 
-const loadMyVideos = async () => {
+const loadMyVideos = async (loadMore = false) => {
+  if (myVideosLoading.value || myVideosNoMore.value && loadMore) return
+  
+  if (loadMore) {
+    myVideosPage.value++
+  } else {
+    myVideosPage.value = 1
+    myVideos.value = []
+    myVideosNoMore.value = false
+  }
+  
+  myVideosLoading.value = true
+  
   try {
     const token = localStorage.getItem('token')
-    const response = await fetch('http://localhost:8080/api/video/my', {
+    const response = await fetch(`http://localhost:8080/api/video/my?pageNum=${myVideosPage.value}&pageSize=12`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -423,14 +582,50 @@ const loadMyVideos = async () => {
     const data = await response.json()
     
     if (data.success) {
-      myVideos.value = data.data
-      stats.videoCount = data.data.length
-      stats.totalViews = data.data.reduce((sum: number, v: Video) => sum + v.viewCount, 0)
+      if (loadMore) {
+        myVideos.value = [...myVideos.value, ...data.data]
+      } else {
+        myVideos.value = data.data
+      }
+      
+      if (data.data.length < 12) {
+        myVideosNoMore.value = true
+      }
+      
+      stats.videoCount = data.total
+      stats.totalViews = myVideos.value.reduce((sum: number, v: Video) => sum + v.viewCount, 0)
     } else {
       ElMessage.error(data.message || '获取视频列表失败')
     }
   } catch (error) {
     ElMessage.error('获取视频列表失败')
+  } finally {
+    myVideosLoading.value = false
+  }
+}
+
+const setupMyVideosObserver = () => {
+  if (myVideosObserver) {
+    myVideosObserver.disconnect()
+  }
+  
+  myVideosObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && !myVideosLoading.value && !myVideosNoMore.value) {
+          loadMyVideos(true)
+        }
+      })
+    },
+    {
+      root: null,
+      rootMargin: '200px',
+      threshold: 0
+    }
+  )
+  
+  if (myVideosSentinelRef.value) {
+    myVideosObserver.observe(myVideosSentinelRef.value)
   }
 }
 
@@ -470,6 +665,218 @@ const formatDate = (dateStr: string) => {
   const date = new Date(dateStr)
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
+
+const formatImageUrl = (url: string) => {
+  if (!url) return ''
+  if (url.startsWith('hdfs://')) {
+    return `http://localhost:8080/api/image/proxy?url=${encodeURIComponent(url)}`
+  }
+  if (url.startsWith('/covers/') || url.startsWith('/videos/')) {
+    return `http://localhost:8080/api/image/proxy?url=${encodeURIComponent(url)}`
+  }
+  return url
+}
+
+const goToVideo = (videoId: number) => {
+  router.push(`/video?id=${videoId}`)
+}
+
+const formatNumber = (num: number) => {
+  if (num === undefined || num === null) return '0'
+  if (num >= 100000000) {
+    return (num / 100000000).toFixed(1) + '亿'
+  }
+  if (num >= 10000) {
+    return (num / 10000).toFixed(1) + '万'
+  }
+  return num.toString()
+}
+
+const loadAnalyticsData = async () => {
+  const token = localStorage.getItem('token')
+  if (!token) return
+  
+  try {
+    const [overviewRes, trendRes, topRes, categoryRes] = await Promise.all([
+      fetch('http://localhost:8080/api/creator/analytics/overview', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+      fetch(`http://localhost:8080/api/creator/analytics/trend?days=${analyticsDays.value}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+      fetch('http://localhost:8080/api/creator/analytics/top-videos?limit=10', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+      fetch('http://localhost:8080/api/creator/analytics/category-distribution', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+    ])
+    
+    const overviewData = await overviewRes.json()
+    const trendDataRes = await trendRes.json()
+    const topData = await topRes.json()
+    const categoryData = await categoryRes.json()
+    
+    if (overviewData.success) {
+      Object.assign(analyticsOverview, overviewData.data)
+    }
+    
+    if (trendDataRes.success) {
+      trendData.value = trendDataRes.data
+      await nextTick()
+      renderTrendChart()
+    }
+    
+    if (topData.success) {
+      topVideos.value = topData.data
+    }
+    
+    if (categoryData.success) {
+      categoryDistribution.value = categoryData.data
+      await nextTick()
+      renderCategoryChart()
+    }
+  } catch (error) {
+    console.error('加载分析数据失败', error)
+  }
+}
+
+const renderTrendChart = () => {
+  if (!trendChartRef.value) return
+  
+  if (trendChart) {
+    trendChart.dispose()
+  }
+  
+  trendChart = echarts.init(trendChartRef.value)
+  
+  const dates = trendData.value.map(item => item.date)
+  const data = trendData.value.map(item => item[trendType.value] || 0)
+  
+  const typeNames: Record<string, string> = {
+    views: '播放量',
+    likes: '点赞数',
+    favorites: '收藏数',
+    comments: '评论数'
+  }
+  
+  const option = {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLabel: {
+        rotate: 45,
+        formatter: (value: string) => {
+          const date = new Date(value)
+          return `${date.getMonth() + 1}/${date.getDate()}`
+        }
+      }
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: {
+        formatter: (value: number) => {
+          if (value >= 10000) {
+            return (value / 10000).toFixed(1) + '万'
+          }
+          return value
+        }
+      }
+    },
+    series: [{
+      name: typeNames[trendType.value],
+      type: 'line',
+      smooth: true,
+      data: data,
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(64, 158, 255, 0.5)' },
+          { offset: 1, color: 'rgba(64, 158, 255, 0.1)' }
+        ])
+      },
+      lineStyle: {
+        color: '#409eff',
+        width: 2
+      },
+      itemStyle: {
+        color: '#409eff'
+      }
+    }]
+  }
+  
+  trendChart.setOption(option)
+}
+
+const renderCategoryChart = () => {
+  if (!categoryChartRef.value) return
+  
+  if (categoryChart) {
+    categoryChart.dispose()
+  }
+  
+  categoryChart = echarts.init(categoryChartRef.value)
+  
+  const data = categoryDistribution.value.map(item => ({
+    name: item.category || '未分类',
+    value: item.count
+  }))
+  
+  const option = {
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}: {c} ({d}%)'
+    },
+    legend: {
+      orient: 'vertical',
+      right: '0%',
+      top: 'center'
+    },
+    series: [{
+      type: 'pie',
+      radius: ['30%', '50%'],
+      center: ['30%', '50%'],
+      avoidLabelOverlap: false,
+      itemStyle: {
+        borderRadius: 10,
+        borderColor: '#fff',
+        borderWidth: 2
+      },
+      label: {
+        show: false,
+        position: 'center'
+      },
+      emphasis: {
+        label: {
+          show: true,
+          fontSize: 14,
+          fontWeight: 'bold'
+        }
+      },
+      labelLine: {
+        show: false
+      },
+      data: data
+    }]
+  }
+  
+  categoryChart.setOption(option)
+}
+
+watch(trendType, () => {
+  renderTrendChart()
+})
 
 onMounted(() => {
   const userStr = localStorage.getItem('user')
@@ -612,22 +1019,33 @@ onMounted(() => {
 
 .stat-card {
   height: 100px;
+  overflow: hidden;
+}
+
+.stat-card :deep(.el-card__body) {
+  padding: 20px;
+  overflow: hidden;
 }
 
 .stat-content {
   display: flex;
   align-items: center;
   gap: 15px;
+  overflow: hidden;
 }
 
 .stat-info {
   flex: 1;
+  overflow: hidden;
 }
 
 .stat-value {
   font-size: 24px;
   font-weight: 600;
   color: #303133;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-label {
@@ -826,6 +1244,85 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.analytics-overview {
+  margin-bottom: 20px;
+}
+
+.analytics-stat-card {
+  text-align: center;
+  padding: 10px 0;
+}
+
+.analytics-stat-card :deep(.el-card__body) {
+  padding: 20px;
+}
+
+.analytics-stat-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 8px;
+}
+
+.analytics-stat-label {
+  font-size: 14px;
+  color: #909399;
+}
+
+.analytics-charts {
+  margin-bottom: 20px;
+}
+
+.chart-container {
+  height: 300px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.top-videos-card {
+  margin-top: 20px;
+}
+
+.video-title-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+}
+
+.video-title-cell.clickable {
+  cursor: pointer;
+  color: #409eff;
+}
+
+.video-title-cell.clickable:hover {
+  text-decoration: underline;
+}
+
+.scroll-sentinel {
+  height: 1px;
+}
+
+.loading-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: #909399;
+  gap: 8px;
+}
+
+.no-more {
+  text-align: center;
+  padding: 20px;
+  color: #909399;
+  font-size: 14px;
 }
 
 @media (max-width: 768px) {

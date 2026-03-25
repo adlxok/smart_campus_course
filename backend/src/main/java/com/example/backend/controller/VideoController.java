@@ -34,11 +34,16 @@ public class VideoController {
     @Autowired
     private CategoryMapper categoryMapper;
     
+    @Autowired
+    private JwtUtil jwtUtil;
+    
     @GetMapping("/list")
     public Map<String, Object> getVideoList(@RequestParam(defaultValue = "1") Integer pageNum,
                                            @RequestParam(defaultValue = "10") Integer pageSize,
                                            @RequestParam(required = false) String keyword,
-                                           @RequestParam(required = false) Long categoryId) {
+                                           @RequestParam(required = false) Long categoryId,
+                                           @RequestParam(required = false) String sortBy,
+                                           @RequestParam(required = false) String sortOrder) {
         Map<String, Object> response = new HashMap<>();
         
         Page<Video> page = new Page<>(pageNum, pageSize);
@@ -49,7 +54,16 @@ public class VideoController {
         if (categoryId != null) {
             queryWrapper.eq("category_id", categoryId);
         }
-        queryWrapper.orderByDesc("create_time");
+        
+        if ("viewCount".equals(sortBy)) {
+            if ("desc".equals(sortOrder)) {
+                queryWrapper.orderByDesc("view_count");
+            } else {
+                queryWrapper.orderByAsc("view_count");
+            }
+        } else {
+            queryWrapper.orderByDesc("create_time");
+        }
         
         IPage<Video> videoPage = videoMapper.selectPage(page, queryWrapper);
         
@@ -75,17 +89,34 @@ public class VideoController {
         return response;
     }
     
+    @GetMapping("/detail/{id}")
+    public Map<String, Object> getVideoDetail(@PathVariable Long id) {
+        Map<String, Object> response = new HashMap<>();
+        
+        Video video = videoMapper.selectById(id);
+        
+        if (video == null) {
+            response.put("success", false);
+            response.put("message", "视频不存在");
+            return response;
+        }
+        
+        response.put("success", true);
+        response.put("data", video);
+        return response;
+    }
+    
     @GetMapping("/my")
-    public Map<String, Object> getMyVideos(@RequestHeader("Authorization") String authorization) {
+    public Map<String, Object> getMyVideos(@RequestHeader("Authorization") String authorization,
+                                           @RequestParam(defaultValue = "1") Integer pageNum,
+                                           @RequestParam(defaultValue = "12") Integer pageSize) {
         Map<String, Object> response = new HashMap<>();
         
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
-            QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
-            userQueryWrapper.eq("username", username);
-            User user = userMapper.selectOne(userQueryWrapper);
+            User user = userMapper.selectByUsername(username);
             
             if (user == null) {
                 response.put("success", false);
@@ -93,13 +124,17 @@ public class VideoController {
                 return response;
             }
             
+            Page<Video> page = new Page<>(pageNum, pageSize);
             QueryWrapper<Video> queryWrapper = new QueryWrapper<>();
-            queryWrapper.eq("user_id", user.getId());
-            queryWrapper.orderByDesc("create_time");
-            List<Video> videos = videoMapper.selectList(queryWrapper);
+            queryWrapper.eq("user_id", user.getId()).orderByDesc("create_time");
+            
+            IPage<Video> videoPage = videoMapper.selectPage(page, queryWrapper);
             
             response.put("success", true);
-            response.put("data", videos);
+            response.put("data", videoPage.getRecords());
+            response.put("total", videoPage.getTotal());
+            response.put("pages", videoPage.getPages());
+            response.put("current", videoPage.getCurrent());
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "获取视频列表失败: " + e.getMessage());
@@ -119,11 +154,9 @@ public class VideoController {
         
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
-            QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
-            userQueryWrapper.eq("username", username);
-            User user = userMapper.selectOne(userQueryWrapper);
+            User user = userMapper.selectByUsername(username);
             
             if (user == null) {
                 response.put("success", false);
@@ -137,26 +170,21 @@ public class VideoController {
                 return response;
             }
             
-            // 确保目录存在
             String uploadDir = "d:/A_Graduation_Project/project/p2_0/backend/video/" + user.getId();
             File dir = new File(uploadDir);
             if (!dir.exists()) {
                 dir.mkdirs();
             }
             
-            // 生成视频文件名
             String originalFilename = video.getOriginalFilename();
             String extension = originalFilename.substring(originalFilename.lastIndexOf('.'));
             String videoFilename = System.currentTimeMillis() + "_" + UUID.randomUUID().toString().substring(0, 8) + extension;
             String videoPath = uploadDir + "/" + videoFilename;
             
-            // 保存视频文件
             video.transferTo(new File(videoPath));
             
-            // 生成视频URL
             String videoUrl = "http://localhost:8080/backend/video/" + user.getId() + "/" + videoFilename;
             
-            // 处理封面图片
             String coverUrl = "";
             if (cover != null && !cover.isEmpty()) {
                 String coverDir = "d:/A_Graduation_Project/project/p2_0/backend/cover/" + user.getId();
@@ -174,7 +202,6 @@ public class VideoController {
                 coverUrl = "http://localhost:8080/backend/cover/" + user.getId() + "/" + coverFilename;
             }
             
-            // 保存视频信息到数据库
             Video videoEntity = new Video(title, description, videoUrl, coverUrl, user.getId(), username);
             if (categoryId != null) {
                 videoEntity.setCategoryId(categoryId);
@@ -199,11 +226,9 @@ public class VideoController {
         
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
-            QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
-            userQueryWrapper.eq("username", username);
-            User user = userMapper.selectOne(userQueryWrapper);
+            User user = userMapper.selectByUsername(username);
             
             if (user == null) {
                 response.put("success", false);
@@ -253,6 +278,136 @@ public class VideoController {
         videoMapper.update(null, updateWrapper);
         
         response.put("success", true);
+        return response;
+    }
+    
+    @GetMapping("/recommend")
+    public Map<String, Object> getRecommendations(@RequestParam Long userId,
+                                                   @RequestParam(defaultValue = "10") int limit) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            String mlServiceUrl = "http://127.0.0.1:5001/api/recommend?userId=" + userId + "&limit=" + limit;
+            
+            java.net.URL url = new java.net.URL(mlServiceUrl);
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(30000);
+            
+            int responseCode = conn.getResponseCode();
+            if (responseCode == 200) {
+                java.io.BufferedReader in = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(conn.getInputStream(), "UTF-8"));
+                StringBuilder content = new StringBuilder();
+                String inputLine;
+                while ((inputLine = in.readLine()) != null) {
+                    content.append(inputLine);
+                }
+                in.close();
+                
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                Map<String, Object> mlResponse = mapper.readValue(content.toString(), Map.class);
+                
+                response.put("success", mlResponse.get("success"));
+                response.put("data", mlResponse.get("data"));
+            } else {
+                response.put("success", false);
+                response.put("message", "推荐服务暂时不可用");
+            }
+            conn.disconnect();
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "获取推荐失败: " + e.getMessage());
+        }
+        return response;
+    }
+    
+    @PostMapping("/features/compute")
+    public Map<String, Object> computeFeatures() {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            String mlServiceUrl = "http://127.0.0.1:5001/api/features/compute";
+            
+            java.net.URL url = new java.net.URL(mlServiceUrl);
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(120000);
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.getOutputStream().write("{}".getBytes());
+            
+            int responseCode = conn.getResponseCode();
+            if (responseCode == 200) {
+                java.io.BufferedReader in = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(conn.getInputStream(), "UTF-8"));
+                StringBuilder content = new StringBuilder();
+                String inputLine;
+                while ((inputLine = in.readLine()) != null) {
+                    content.append(inputLine);
+                }
+                in.close();
+                
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                Map<String, Object> mlResponse = mapper.readValue(content.toString(), Map.class);
+                
+                response.put("success", mlResponse.get("success"));
+                response.put("message", mlResponse.get("message"));
+                response.put("total", mlResponse.get("total"));
+                response.put("saved", mlResponse.get("saved"));
+            } else {
+                response.put("success", false);
+                response.put("message", "特征计算服务暂时不可用");
+            }
+            conn.disconnect();
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "特征计算失败: " + e.getMessage());
+        }
+        return response;
+    }
+    
+    @PostMapping("/features/compute/{videoId}")
+    public Map<String, Object> computeSingleFeature(@PathVariable Long videoId) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            String mlServiceUrl = "http://127.0.0.1:5001/api/features/compute/" + videoId;
+            
+            java.net.URL url = new java.net.URL(mlServiceUrl);
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(60000);
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.getOutputStream().write("{}".getBytes());
+            
+            int responseCode = conn.getResponseCode();
+            if (responseCode == 200) {
+                java.io.BufferedReader in = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(conn.getInputStream(), "UTF-8"));
+                StringBuilder content = new StringBuilder();
+                String inputLine;
+                while ((inputLine = in.readLine()) != null) {
+                    content.append(inputLine);
+                }
+                in.close();
+                
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                Map<String, Object> mlResponse = mapper.readValue(content.toString(), Map.class);
+                
+                response.put("success", mlResponse.get("success"));
+                response.put("message", mlResponse.get("message"));
+                response.put("videoId", mlResponse.get("videoId"));
+            } else {
+                response.put("success", false);
+                response.put("message", "特征计算服务暂时不可用");
+            }
+            conn.disconnect();
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "特征计算失败: " + e.getMessage());
+        }
         return response;
     }
 }

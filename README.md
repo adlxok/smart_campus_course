@@ -351,4 +351,8 @@ spring.servlet.multipart.max-request-size=500MB
 - [Element Plus](https://element-plus.org/)
 - [ECharts](https://echarts.apache.org/)
 - [PySpark](https://spark.apache.org/docs/latest/api/python/)
+<<<<<<< HEAD
 - [智谱 AI](https://www.zhipuai.cn/)
+=======
+- [智谱 AI](https://www.zhipuai.cn/)
+>>>>>>> dev

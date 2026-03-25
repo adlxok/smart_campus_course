@@ -18,6 +18,17 @@ interface Notification {
   createTime: string
 }
 
+interface SystemNotification {
+  id: number
+  title: string
+  content: string
+  type: string
+  status: number
+  is_read: number
+  read_time: string
+  create_time: string
+}
+
 interface Conversation {
   id: number
   otherUserId: number
@@ -46,6 +57,7 @@ interface OtherUser {
 const router = useRouter()
 const route = useRoute()
 const notifications = ref<Notification[]>([])
+const systemNotifications = ref<SystemNotification[]>([])
 const conversations = ref<Conversation[]>([])
 const messages = ref<Message[]>([])
 const currentConversationId = ref<number | null>(null)
@@ -53,6 +65,7 @@ const otherUser = ref<OtherUser | null>(null)
 const newMessage = ref('')
 const unreadCount = ref(0)
 const chatUnreadCount = ref(0)
+const systemUnreadCount = ref(0)
 const loading = ref(true)
 const chatLoading = ref(false)
 const sending = ref(false)
@@ -63,17 +76,16 @@ const myNotifications = computed(() => {
   return notifications.value.filter(n => n.type === 'FAVORITE' || n.type === 'LIKE' || n.type === 'FOLLOW' || n.type === 'COMMENT')
 })
 
-const systemNotifications = computed(() => {
-  return notifications.value.filter(n => n.type === 'SYSTEM')
-})
-
 const currentNotifications = computed(() => {
   return activeMenu.value === 'my' ? myNotifications.value : systemNotifications.value
 })
 
 const currentUnreadCount = computed(() => {
-  const list = activeMenu.value === 'my' ? myNotifications.value : systemNotifications.value
-  return list.filter(n => !n.isRead).length
+  if (activeMenu.value === 'my') {
+    return myNotifications.value.filter(n => !n.isRead).length
+  } else {
+    return systemUnreadCount.value
+  }
 })
 
 const fetchNotifications = async () => {
@@ -86,13 +98,88 @@ const fetchNotifications = async () => {
       }
     })
     if (response.data.success) {
-      notifications.value = response.data.notifications
-      unreadCount.value = response.data.unreadCount
+      notifications.value = response.data.notifications || []
+      unreadCount.value = response.data.unreadCount || 0
     }
   } catch (error) {
     console.error('获取通知失败:', error)
   } finally {
     loading.value = false
+  }
+}
+
+const fetchSystemNotifications = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    const response = await axios.get('http://localhost:8080/api/notification/system/list', {
+      params: {
+        page: 1,
+        pageSize: 50
+      },
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    if (response.data.success) {
+      systemNotifications.value = response.data.data || []
+    }
+  } catch (error) {
+    console.error('获取系统通知失败:', error)
+  }
+}
+
+const fetchSystemUnreadCount = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    const response = await axios.get('http://localhost:8080/api/notification/unread-count', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    if (response.data.success) {
+      systemUnreadCount.value = response.data.count || 0
+    }
+  } catch (error) {
+    console.error('获取未读数量失败:', error)
+  }
+}
+
+const markSystemNotificationAsRead = async (notificationId: number) => {
+  try {
+    const token = localStorage.getItem('token')
+    const response = await axios.post(`http://localhost:8080/api/notification/read/${notificationId}`, {}, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    if (response.data.success) {
+      const notification = systemNotifications.value.find(n => n.id === notificationId)
+      if (notification) {
+        notification.is_read = 1
+      }
+      systemUnreadCount.value = Math.max(0, systemUnreadCount.value - 1)
+      window.dispatchEvent(new CustomEvent('notificationRead'))
+    }
+  } catch (error) {
+    console.error('标记已读失败:', error)
+  }
+}
+
+const markAllSystemNotificationsAsRead = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    const response = await axios.post('http://localhost:8080/api/notification/read-all', {}, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    if (response.data.success) {
+      systemNotifications.value.forEach(n => n.is_read = 1)
+      systemUnreadCount.value = 0
+      window.dispatchEvent(new CustomEvent('notificationRead'))
+    }
+  } catch (error) {
+    console.error('全部标记已读失败:', error)
   }
 }
 
@@ -295,6 +382,8 @@ const handleMenuSelect = (key: string) => {
 onMounted(async () => {
   await fetchNotifications()
   await fetchConversations()
+  await fetchSystemNotifications()
+  await fetchSystemUnreadCount()
   
   const chatIdFromQuery = route.query.chat ? Number(route.query.chat) : null
   if (chatIdFromQuery) {
@@ -350,8 +439,8 @@ onMounted(async () => {
           <el-icon><Bell /></el-icon>
           <span>系统通知</span>
           <el-badge 
-            v-if="systemNotifications.filter(n => !n.isRead).length > 0" 
-            :value="systemNotifications.filter(n => !n.isRead).length" 
+            v-if="systemUnreadCount > 0" 
+            :value="systemUnreadCount" 
             :max="99"
             class="menu-badge"
           />
@@ -445,7 +534,7 @@ onMounted(async () => {
           v-if="currentUnreadCount > 0" 
           type="primary" 
           text 
-          @click="markAllAsRead"
+          @click="activeMenu === 'my' ? markAllAsRead() : markAllSystemNotificationsAsRead()"
         >
           全部已读
         </el-button>
@@ -457,25 +546,59 @@ onMounted(async () => {
         </div>
         
         <div v-else class="notification-list">
-          <div 
-            v-for="notification in currentNotifications" 
-            :key="notification.id"
-            class="notification-item"
-            :class="{ unread: !notification.isRead }"
-            @click="markAsRead(notification)"
-          >
-            <div class="notification-avatar" @click="goToUserProfile($event, notification.fromUserId)">
-              <el-avatar :size="48" :src="getAvatarUrl(notification.fromUserAvatar)" />
-            </div>
-            <div class="notification-main">
-              <div class="notification-header">
-                <span class="notification-title">{{ notification.title }}</span>
-                <span class="notification-time">{{ formatTime(notification.createTime) }}</span>
+          <template v-if="activeMenu === 'my'">
+            <div 
+              v-for="notification in currentNotifications" 
+              :key="notification.id"
+              class="notification-item"
+              :class="{ unread: !notification.isRead }"
+              @click="markAsRead(notification)"
+            >
+              <div class="notification-avatar" @click="goToUserProfile($event, notification.fromUserId)">
+                <el-avatar :size="48" :src="getAvatarUrl(notification.fromUserAvatar)" />
               </div>
-              <div class="notification-content">{{ notification.content }}</div>
+              <div class="notification-main">
+                <div class="notification-header">
+                  <span class="notification-title">{{ notification.title }}</span>
+                  <span class="notification-time">{{ formatTime(notification.createTime) }}</span>
+                </div>
+                <div class="notification-content">{{ notification.content }}</div>
+              </div>
+              <div class="notification-dot" v-if="!notification.isRead"></div>
             </div>
-            <div class="notification-dot" v-if="!notification.isRead"></div>
-          </div>
+          </template>
+          <template v-else>
+            <div 
+              v-for="notification in systemNotifications" 
+              :key="notification.id"
+              class="notification-item"
+              :class="{ unread: !notification.is_read }"
+              @click="markSystemNotificationAsRead(notification.id)"
+            >
+              <div class="notification-icon">
+                <el-icon :size="32" :color="notification.type === 'urgent' ? '#f56c6c' : notification.type === 'important' ? '#e6a23c' : '#409eff'">
+                  <Bell />
+                </el-icon>
+              </div>
+              <div class="notification-main">
+                <div class="notification-header">
+                  <div class="notification-title-row">
+                    <span class="notification-title">{{ notification.title }}</span>
+                    <el-tag 
+                      v-if="notification.type !== 'normal'" 
+                      :type="notification.type === 'urgent' ? 'danger' : 'warning'"
+                      size="small"
+                    >
+                      {{ notification.type === 'urgent' ? '紧急' : '重要' }}
+                    </el-tag>
+                  </div>
+                  <span class="notification-time">{{ formatTime(notification.create_time) }}</span>
+                </div>
+                <div class="notification-content">{{ notification.content }}</div>
+              </div>
+              <div class="notification-dot" v-if="!notification.is_read"></div>
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -843,6 +966,18 @@ onMounted(async () => {
   transform: scale(1.1);
 }
 
+.notification-icon {
+  margin-right: 16px;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f5f7fa;
+  border-radius: 50%;
+}
+
 .notification-main {
   flex: 1;
   min-width: 0;
@@ -853,6 +988,12 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
+}
+
+.notification-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .notification-title {

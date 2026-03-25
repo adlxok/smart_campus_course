@@ -19,6 +19,9 @@ import java.util.Map;
 public class CommentController {
     
     @Autowired
+    private JwtUtil jwtUtil;
+    
+    @Autowired
     private CommentMapper commentMapper;
     
     @Autowired
@@ -92,7 +95,7 @@ public class CommentController {
         
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
             QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
             userQueryWrapper.eq("username", username);
@@ -158,7 +161,7 @@ public class CommentController {
         
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
             QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
             userQueryWrapper.eq("username", username);
