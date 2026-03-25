@@ -34,6 +34,9 @@ public class VideoController {
     @Autowired
     private CategoryMapper categoryMapper;
     
+    @Autowired
+    private JwtUtil jwtUtil;
+    
     @GetMapping("/list")
     public Map<String, Object> getVideoList(@RequestParam(defaultValue = "1") Integer pageNum,
                                            @RequestParam(defaultValue = "10") Integer pageSize,
@@ -111,11 +114,9 @@ public class VideoController {
         
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
-            QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
-            userQueryWrapper.eq("username", username);
-            User user = userMapper.selectOne(userQueryWrapper);
+            User user = userMapper.selectByUsername(username);
             
             if (user == null) {
                 response.put("success", false);
@@ -125,8 +126,7 @@ public class VideoController {
             
             Page<Video> page = new Page<>(pageNum, pageSize);
             QueryWrapper<Video> queryWrapper = new QueryWrapper<>();
-            queryWrapper.eq("user_id", user.getId());
-            queryWrapper.orderByDesc("create_time");
+            queryWrapper.eq("user_id", user.getId()).orderByDesc("create_time");
             
             IPage<Video> videoPage = videoMapper.selectPage(page, queryWrapper);
             
@@ -154,11 +154,9 @@ public class VideoController {
         
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
-            QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
-            userQueryWrapper.eq("username", username);
-            User user = userMapper.selectOne(userQueryWrapper);
+            User user = userMapper.selectByUsername(username);
             
             if (user == null) {
                 response.put("success", false);
@@ -172,26 +170,21 @@ public class VideoController {
                 return response;
             }
             
-            // 确保目录存在
             String uploadDir = "d:/A_Graduation_Project/project/p2_0/backend/video/" + user.getId();
             File dir = new File(uploadDir);
             if (!dir.exists()) {
                 dir.mkdirs();
             }
             
-            // 生成视频文件名
             String originalFilename = video.getOriginalFilename();
             String extension = originalFilename.substring(originalFilename.lastIndexOf('.'));
             String videoFilename = System.currentTimeMillis() + "_" + UUID.randomUUID().toString().substring(0, 8) + extension;
             String videoPath = uploadDir + "/" + videoFilename;
             
-            // 保存视频文件
             video.transferTo(new File(videoPath));
             
-            // 生成视频URL
             String videoUrl = "http://localhost:8080/backend/video/" + user.getId() + "/" + videoFilename;
             
-            // 处理封面图片
             String coverUrl = "";
             if (cover != null && !cover.isEmpty()) {
                 String coverDir = "d:/A_Graduation_Project/project/p2_0/backend/cover/" + user.getId();
@@ -209,7 +202,6 @@ public class VideoController {
                 coverUrl = "http://localhost:8080/backend/cover/" + user.getId() + "/" + coverFilename;
             }
             
-            // 保存视频信息到数据库
             Video videoEntity = new Video(title, description, videoUrl, coverUrl, user.getId(), username);
             if (categoryId != null) {
                 videoEntity.setCategoryId(categoryId);
@@ -234,11 +226,9 @@ public class VideoController {
         
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
-            QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
-            userQueryWrapper.eq("username", username);
-            User user = userMapper.selectOne(userQueryWrapper);
+            User user = userMapper.selectByUsername(username);
             
             if (user == null) {
                 response.put("success", false);
@@ -320,8 +310,6 @@ public class VideoController {
                 
                 response.put("success", mlResponse.get("success"));
                 response.put("data", mlResponse.get("data"));
-                response.put("message", mlResponse.get("message"));
-                response.put("userTags", mlResponse.get("userTags"));
             } else {
                 response.put("success", false);
                 response.put("message", "推荐服务暂时不可用");

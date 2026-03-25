@@ -313,6 +313,7 @@ const loadRecommendations = async () => {
     
     const response = await fetch(`http://localhost:8080/api/video/recommend?userId=${userInfo.value.id}&limit=10`)
     const data = await response.json()
+    console.log(data)
     
     if (data.success && data.data) {
       videos.value = data.data.map((v: any) => ({
@@ -329,6 +330,7 @@ const loadRecommendations = async () => {
       if (data.message) {
         ElMessage.success(data.message)
       }
+      ElMessage.success(`基于您的收藏兴趣推荐了${data.data.length}个视频`);
     } else {
       videos.value = []
       if (data.message) {

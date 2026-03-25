@@ -15,6 +15,9 @@ import java.util.*;
 public class CreatorAnalyticsController {
     
     @Autowired
+    private JwtUtil jwtUtil;
+    
+    @Autowired
     private VideoMapper videoMapper;
     
     @Autowired
@@ -38,7 +41,7 @@ public class CreatorAnalyticsController {
         
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
             User user = userMapper.selectByUsername(username);
             if (user == null) {
@@ -74,7 +77,7 @@ public class CreatorAnalyticsController {
         
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
             User user = userMapper.selectByUsername(username);
             if (user == null) {
@@ -157,7 +160,7 @@ public class CreatorAnalyticsController {
         
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
             User user = userMapper.selectByUsername(username);
             if (user == null) {
@@ -193,7 +196,7 @@ public class CreatorAnalyticsController {
         
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
             User user = userMapper.selectByUsername(username);
             if (user == null) {

@@ -15,6 +15,9 @@ import java.util.Map;
 public class PrivateMessageController {
     
     @Autowired
+    private JwtUtil jwtUtil;
+    
+    @Autowired
     private PrivateMessageService privateMessageService;
     
     @Autowired
@@ -24,7 +27,7 @@ public class PrivateMessageController {
     public Map<String, Object> getConversations(@RequestHeader("Authorization") String authorization) {
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
             QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
             userQueryWrapper.eq("username", username);
@@ -51,7 +54,7 @@ public class PrivateMessageController {
                                            @RequestHeader("Authorization") String authorization) {
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
             QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
             userQueryWrapper.eq("username", username);
@@ -78,7 +81,7 @@ public class PrivateMessageController {
                                            @RequestHeader("Authorization") String authorization) {
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
             QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
             userQueryWrapper.eq("username", username);
@@ -108,7 +111,7 @@ public class PrivateMessageController {
                                                        @RequestHeader("Authorization") String authorization) {
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
             QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
             userQueryWrapper.eq("username", username);
@@ -134,7 +137,7 @@ public class PrivateMessageController {
     public Map<String, Object> getUnreadCount(@RequestHeader("Authorization") String authorization) {
         try {
             String token = authorization.substring(7);
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
             QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
             userQueryWrapper.eq("username", username);

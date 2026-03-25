@@ -3,6 +3,7 @@ package com.example.backend.controller;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.example.backend.entity.BilibiliVideo;
+import com.example.backend.entity.Role;
 import com.example.backend.entity.User;
 import com.example.backend.mapper.UserMapper;
 import com.example.backend.service.BilibiliVideoService;
@@ -130,13 +131,21 @@ public class AdminController {
         Map<String, Object> response = new HashMap<>();
         try {
             String username = data.get("username");
-            QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-            queryWrapper.eq("username", username);
-            User user = userMapper.selectOne(queryWrapper);
+            User user = userMapper.selectByUsername(username);
             
-            if (user != null && "ADMIN".equals(user.getRole())) {
+            if (user != null) {
+                List<Role> roles = userMapper.selectRolesByUserId(user.getId());
+                boolean isAdmin = false;
+                for (Role role : roles) {
+                    if ("SUPER_ADMIN".equals(role.getCode()) || 
+                        "SYSTEM_ADMIN".equals(role.getCode()) || 
+                        "DATA_ADMIN".equals(role.getCode())) {
+                        isAdmin = true;
+                        break;
+                    }
+                }
                 response.put("success", true);
-                response.put("isAdmin", true);
+                response.put("isAdmin", isAdmin);
             } else {
                 response.put("success", true);
                 response.put("isAdmin", false);

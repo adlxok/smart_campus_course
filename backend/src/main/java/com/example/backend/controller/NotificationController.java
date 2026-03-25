@@ -29,6 +29,9 @@ public class NotificationController {
     @Autowired
     private NotificationService notificationService;
     
+    @Autowired
+    private JwtUtil jwtUtil;
+    
     @GetMapping("/list")
     public Map<String, Object> getUserNotifications(
             @RequestHeader("Authorization") String authorization,
@@ -37,11 +40,9 @@ public class NotificationController {
         Map<String, Object> response = new HashMap<>();
         try {
             String token = authorization.replace("Bearer ", "");
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
-            QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
-            userQueryWrapper.eq("username", username);
-            User user = userMapper.selectOne(userQueryWrapper);
+            User user = userMapper.selectByUsername(username);
             
             if (user == null) {
                 response.put("success", false);
@@ -66,11 +67,9 @@ public class NotificationController {
         Map<String, Object> response = new HashMap<>();
         try {
             String token = authorization.replace("Bearer ", "");
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
-            QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
-            userQueryWrapper.eq("username", username);
-            User user = userMapper.selectOne(userQueryWrapper);
+            User user = userMapper.selectByUsername(username);
             
             if (user == null) {
                 response.put("success", false);
@@ -98,11 +97,9 @@ public class NotificationController {
         Map<String, Object> response = new HashMap<>();
         try {
             String token = authorization.replace("Bearer ", "");
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
-            QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
-            userQueryWrapper.eq("username", username);
-            User user = userMapper.selectOne(userQueryWrapper);
+            User user = userMapper.selectByUsername(username);
             
             if (user == null) {
                 response.put("success", false);
@@ -130,11 +127,9 @@ public class NotificationController {
         Map<String, Object> response = new HashMap<>();
         try {
             String token = authorization.replace("Bearer ", "");
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
-            QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
-            userQueryWrapper.eq("username", username);
-            User user = userMapper.selectOne(userQueryWrapper);
+            User user = userMapper.selectByUsername(username);
             
             if (user == null) {
                 response.put("success", false);
@@ -158,11 +153,9 @@ public class NotificationController {
         Map<String, Object> response = new HashMap<>();
         try {
             String token = authorization.replace("Bearer ", "");
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
-            QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
-            userQueryWrapper.eq("username", username);
-            User user = userMapper.selectOne(userQueryWrapper);
+            User user = userMapper.selectByUsername(username);
             
             if (user == null) {
                 response.put("success", false);
@@ -190,11 +183,9 @@ public class NotificationController {
         Map<String, Object> response = new HashMap<>();
         try {
             String token = authorization.replace("Bearer ", "");
-            String username = JwtUtil.getUsernameFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
             
-            QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
-            userQueryWrapper.eq("username", username);
-            User user = userMapper.selectOne(userQueryWrapper);
+            User user = userMapper.selectByUsername(username);
             
             if (user == null) {
                 response.put("success", false);

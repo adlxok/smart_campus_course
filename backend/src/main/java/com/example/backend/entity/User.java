@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.util.Date;
+import java.util.List;
 
 @TableName("users")
 public class User {
@@ -16,9 +17,6 @@ public class User {
     
     @TableField("password")
     private String password;
-    
-    @TableField("role")
-    private String role;
     
     @TableField("created_at")
     private Date createdAt;
@@ -38,13 +36,15 @@ public class User {
     @TableField("signature")
     private String signature;
     
+    @TableField(exist = false)
+    private List<Role> roles;
+    
     public User() {
     }
     
     public User(String username, String password) {
         this.username = username;
         this.password = password;
-        this.role = "USER";
     }
     
     public Long getId() {
@@ -69,14 +69,6 @@ public class User {
     
     public void setPassword(String password) {
         this.password = password;
-    }
-    
-    public String getRole() {
-        return role;
-    }
-    
-    public void setRole(String role) {
-        this.role = role;
     }
     
     public Date getCreatedAt() {
@@ -125,5 +117,13 @@ public class User {
     
     public void setSignature(String signature) {
         this.signature = signature;
+    }
+    
+    public List<Role> getRoles() {
+        return roles;
+    }
+    
+    public void setRoles(List<Role> roles) {
+        this.roles = roles;
     }
 }

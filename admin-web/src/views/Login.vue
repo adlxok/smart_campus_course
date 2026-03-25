@@ -60,18 +60,25 @@ export default {
         
         if (response.data.success) {
           localStorage.setItem('token', response.data.token)
-          localStorage.setItem('user', JSON.stringify(response.data.user))
           
-          const adminCheck = await api.post('/admin/check-admin', {
-            username: username.value
+          const roleResponse = await api.get('/role/user/info', {
+            headers: { 'Authorization': `Bearer ${response.data.token}` }
           })
           
-          if (adminCheck.data.isAdmin) {
-            router.push('/dashboard')
+          if (roleResponse.data.success) {
+            const userInfo = roleResponse.data.data
+            const roleCode = userInfo.roleCode
+            
+            if (roleCode === 'SUPER_ADMIN' || roleCode === 'SYSTEM_ADMIN' || roleCode === 'DATA_ADMIN') {
+              localStorage.setItem('user', JSON.stringify(userInfo))
+              router.push('/dashboard')
+            } else {
+              errorMsg.value = '您没有访问后台管理系统的权限'
+              localStorage.removeItem('token')
+            }
           } else {
-            errorMsg.value = '您不是管理员，无法访问后台'
+            errorMsg.value = '获取用户权限失败'
             localStorage.removeItem('token')
-            localStorage.removeItem('user')
           }
         } else {
           errorMsg.value = response.data.message || '登录失败'

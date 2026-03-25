@@ -5,7 +5,7 @@
         <h2>后台管理系统</h2>
       </div>
       <nav class="nav-menu">
-        <div class="menu-group">
+        <div class="menu-group" v-if="canAccessSystem">
           <div class="menu-group-title" @click="toggleGroup('system')">
             <span class="group-icon">⚙️</span>
             <span>系统管理</span>
@@ -55,7 +55,7 @@
           </div>
         </div>
 
-        <div class="menu-group">
+        <div class="menu-group" v-if="canAccessData">
           <div class="menu-group-title" @click="toggleGroup('crawler')">
             <span class="group-icon">🕷️</span>
             <span>数据爬取和分析</span>
@@ -879,10 +879,28 @@ export default {
     const username = ref('')
     const currentUserId = ref(null)
     const currentMenu = ref('dashboard')
+    const userRole = ref('')
+    const userPermissions = ref([])
     const expandedGroups = ref({
       system: false,
       crawler: false
     })
+    
+    const hasPermission = (permission) => {
+      if (userRole.value === 'SUPER_ADMIN') {
+        return true
+      }
+      return userPermissions.value.includes(permission)
+    }
+    
+    const canAccessSystem = computed(() => {
+      return hasPermission('system:manage') || userRole.value === 'SUPER_ADMIN' || userRole.value === 'SYSTEM_ADMIN'
+    })
+    
+    const canAccessData = computed(() => {
+      return hasPermission('data:manage') || userRole.value === 'SUPER_ADMIN' || userRole.value === 'DATA_ADMIN'
+    })
+    
     const videos = ref([])
 
     const toggleGroup = (group) => {
@@ -2035,10 +2053,12 @@ export default {
       }
     })
 
-    onMounted(() => {
+    onMounted(async () => {
       const user = JSON.parse(localStorage.getItem('user') || '{}')
       username.value = user.username || 'Admin'
       currentUserId.value = user.id || null
+      userRole.value = user.roleCode || 'USER'
+      userPermissions.value = user.permissions || []
       
       const systemMenus = ['dashboard', 'categories', 'users', 'notifications', 'banners']
       const crawlerMenus = ['videos', 'crawler', 'import', 'proxy', 'analysis']
@@ -2176,7 +2196,9 @@ export default {
       deleteBanner,
       toggleBannerStatus,
       beforeBannerUpload,
-      handleBannerUploadSuccess
+      handleBannerUploadSuccess,
+      canAccessSystem,
+      canAccessData
     }
   }
 }
