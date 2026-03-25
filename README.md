@@ -18,6 +18,41 @@
 
 ---
 
+## 系统功能
+
+### 首页
+
+鼠标滚轮下滑刷新
+AI智能小助手
+<img width="1566" height="948" alt="image" src="https://github.com/user-attachments/assets/2fd7a0d3-bc41-440a-9921-0aeea243317a" />
+
+根据收藏推荐十条视频
+按分类筛选
+<img width="1207" height="943" alt="image" src="https://github.com/user-attachments/assets/14bdef52-7b92-460a-b4f9-86df0cb41f9c" />
+
+视频点赞收藏评论
+<img width="1180" height="868" alt="image" src="https://github.com/user-attachments/assets/9786eb7b-1d5d-49f1-b138-70858389aa7c" />
+<img width="1007" height="694" alt="image" src="https://github.com/user-attachments/assets/0ebe0774-b1bd-4e3e-9acd-9a6b8c40c84c" />
+
+消息中心，私信，系统通知，点赞收藏关注通知
+<img width="1255" height="497" alt="image" src="https://github.com/user-attachments/assets/7106efc2-4d8f-4984-8827-1571ed3812da" />
+<img width="1262" height="938" alt="image" src="https://github.com/user-attachments/assets/fea4e821-2ac6-4a2e-89b3-32bf6fe524ff" />
+<img width="1292" height="576" alt="image" src="https://github.com/user-attachments/assets/51110d93-431e-4ecf-b6ec-819703f37cb4" />
+
+创作者中心
+<img width="1234" height="811" alt="image" src="https://github.com/user-attachments/assets/968c135a-9241-48ac-a978-964487b60992" />
+<img width="1233" height="938" alt="image" src="https://github.com/user-attachments/assets/3c0c46cc-02a4-4b07-91eb-0a44c84026b3" />
+
+用户中心
+<img width="1205" height="896" alt="image" src="https://github.com/user-attachments/assets/7ec59070-55ff-425e-9192-cdb5beda2ce9" />
+
+后台管理
+<img width="1818" height="934" alt="image" src="https://github.com/user-attachments/assets/64a7ea81-5655-4a53-a7af-7468e38518ac" />
+<img width="1817" height="937" alt="image" src="https://github.com/user-attachments/assets/2e8bf3b2-ce40-4222-bb60-20686a596c8a" />
+<img width="1620" height="926" alt="image" src="https://github.com/user-attachments/assets/d41c4ac3-50db-4e7c-a42f-cad465ba3717" />
+<img width="1634" height="939" alt="image" src="https://github.com/user-attachments/assets/fc5161f4-07f6-4834-a233-b02db158045d" />
+<img width="1904" height="938" alt="image" src="https://github.com/user-attachments/assets/c388d4eb-4688-49e6-a7b7-3d3be63cab65" />
+
 ## 🏗️ 系统架构
 
 ```
