@@ -2,6 +2,7 @@ package com.example.backend.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.example.backend.annotation.RequirePermission;
 import com.example.backend.entity.Category;
 import com.example.backend.service.CategoryService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,7 @@ public class CategoryController {
     private CategoryService categoryService;
     
     @GetMapping("/list")
+    @RequirePermission("system:category:manage")
     public Map<String, Object> getCategoryList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
@@ -71,6 +73,7 @@ public class CategoryController {
     }
     
     @PostMapping("/add")
+    @RequirePermission("system:category:manage")
     public Map<String, Object> addCategory(@RequestBody Category category) {
         Map<String, Object> response = new HashMap<>();
         try {
@@ -104,6 +107,7 @@ public class CategoryController {
     }
     
     @PutMapping("/update")
+    @RequirePermission("system:category:manage")
     public Map<String, Object> updateCategory(@RequestBody Category category) {
         Map<String, Object> response = new HashMap<>();
         try {

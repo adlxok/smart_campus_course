@@ -3,6 +3,7 @@ package com.example.backend.controller;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.backend.annotation.RequirePermission;
 import com.example.backend.entity.Banner;
 import com.example.backend.mapper.BannerMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,7 @@ public class BannerController {
     }
     
     @GetMapping("/admin/list")
+    @RequirePermission("system:banner:manage")
     public Map<String, Object> getBannerList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
@@ -59,6 +61,7 @@ public class BannerController {
     }
     
     @PostMapping("/admin/add")
+    @RequirePermission("system:banner:manage")
     public Map<String, Object> addBanner(@RequestBody Banner banner) {
         Map<String, Object> response = new HashMap<>();
         try {
@@ -84,6 +87,7 @@ public class BannerController {
     }
     
     @PutMapping("/admin/update")
+    @RequirePermission("system:banner:manage")
     public Map<String, Object> updateBanner(@RequestBody Banner banner) {
         Map<String, Object> response = new HashMap<>();
         try {
@@ -100,6 +104,7 @@ public class BannerController {
     }
     
     @DeleteMapping("/admin/delete/{id}")
+    @RequirePermission("system:banner:manage")
     public Map<String, Object> deleteBanner(@PathVariable Long id) {
         Map<String, Object> response = new HashMap<>();
         try {
@@ -115,6 +120,7 @@ public class BannerController {
     }
     
     @PutMapping("/admin/toggle/{id}")
+    @RequirePermission("system:banner:manage")
     public Map<String, Object> toggleBannerStatus(@PathVariable Long id) {
         Map<String, Object> response = new HashMap<>();
         try {
@@ -139,6 +145,7 @@ public class BannerController {
     }
     
     @PostMapping("/admin/upload")
+    @RequirePermission("system:banner:manage")
     public Map<String, Object> uploadImage(@RequestParam("file") MultipartFile file) {
         Map<String, Object> response = new HashMap<>();
         try {

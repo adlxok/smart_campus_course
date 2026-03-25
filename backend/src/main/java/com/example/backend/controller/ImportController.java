@@ -1,5 +1,6 @@
 package com.example.backend.controller;
 
+import com.example.backend.annotation.RequirePermission;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.HttpEntity;
@@ -20,6 +21,7 @@ public class ImportController {
     private final RestTemplate restTemplate = new RestTemplate();
 
     @PostMapping("/start")
+    @RequirePermission("data:import:manage")
     public Map<String, Object> startImport(@RequestBody Map<String, Object> params) {
         Map<String, Object> response = new HashMap<>();
         try {

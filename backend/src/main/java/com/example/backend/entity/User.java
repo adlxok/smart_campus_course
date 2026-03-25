@@ -18,11 +18,11 @@ public class User {
     @TableField("password")
     private String password;
     
-    @TableField("created_at")
-    private Date createdAt;
+    @TableField("create_time")
+    private Date createTime;
     
-    @TableField("updated_at")
-    private Date updatedAt;
+    @TableField("update_time")
+    private Date updateTime;
     
     @TableField("avatar")
     private String avatar;
@@ -71,20 +71,20 @@ public class User {
         this.password = password;
     }
     
-    public Date getCreatedAt() {
-        return createdAt;
+    public Date getCreateTime() {
+        return createTime;
     }
     
-    public void setCreatedAt(Date createdAt) {
-        this.createdAt = createdAt;
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
     }
     
-    public Date getUpdatedAt() {
-        return updatedAt;
+    public Date getUpdateTime() {
+        return updateTime;
     }
     
-    public void setUpdatedAt(Date updatedAt) {
-        this.updatedAt = updatedAt;
+    public void setUpdateTime(Date updateTime) {
+        this.updateTime = updateTime;
     }
     
     public String getAvatar() {

@@ -1,5 +1,6 @@
 package com.example.backend.controller;
 
+import com.example.backend.annotation.RequirePermission;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import javax.sql.DataSource;
@@ -14,6 +15,7 @@ public class DataAnalysisController {
     private DataSource dataSource;
 
     @GetMapping("/overview")
+    @RequirePermission("data:analysis:manage")
     public Map<String, Object> getOverview(@RequestParam(required = false) String category) {
         Map<String, Object> result = new HashMap<>();
         try (Connection conn = dataSource.getConnection()) {
@@ -48,6 +50,7 @@ public class DataAnalysisController {
     }
 
     @GetMapping("/category-distribution")
+    @RequirePermission("data:analysis:manage")
     public Map<String, Object> getCategoryDistribution() {
         Map<String, Object> result = new HashMap<>();
         try (Connection conn = dataSource.getConnection()) {
@@ -73,6 +76,7 @@ public class DataAnalysisController {
     }
 
     @GetMapping("/top-videos")
+    @RequirePermission("data:analysis:manage")
     public Map<String, Object> getTopVideos(@RequestParam(defaultValue = "view") String sortBy) {
         Map<String, Object> result = new HashMap<>();
         try (Connection conn = dataSource.getConnection()) {
@@ -115,6 +119,7 @@ public class DataAnalysisController {
     }
 
     @GetMapping("/tag-cloud")
+    @RequirePermission("data:analysis:manage")
     public Map<String, Object> getTagCloud(@RequestParam(required = false) String category) {
         Map<String, Object> result = new HashMap<>();
         try (Connection conn = dataSource.getConnection()) {
@@ -168,6 +173,7 @@ public class DataAnalysisController {
     }
 
     @GetMapping("/interaction-stats")
+    @RequirePermission("data:analysis:manage")
     public Map<String, Object> getInteractionStats(@RequestParam(required = false) String category) {
         Map<String, Object> result = new HashMap<>();
         try (Connection conn = dataSource.getConnection()) {
@@ -216,6 +222,7 @@ public class DataAnalysisController {
     }
 
     @GetMapping("/radar-by-category")
+    @RequirePermission("data:analysis:manage")
     public Map<String, Object> getRadarByCategory() {
         Map<String, Object> result = new HashMap<>();
         try (Connection conn = dataSource.getConnection()) {
@@ -255,6 +262,7 @@ public class DataAnalysisController {
     }
 
     @GetMapping("/daily-trend")
+    @RequirePermission("data:analysis:manage")
     public Map<String, Object> getDailyTrend() {
         Map<String, Object> result = new HashMap<>();
         try (Connection conn = dataSource.getConnection()) {
@@ -290,6 +298,7 @@ public class DataAnalysisController {
     }
 
     @GetMapping("/category-likes")
+    @RequirePermission("data:analysis:manage")
     public Map<String, Object> getCategoryLikes(@RequestParam(defaultValue = "like") String sortBy) {
         Map<String, Object> result = new HashMap<>();
         try (Connection conn = dataSource.getConnection()) {
@@ -330,6 +339,7 @@ public class DataAnalysisController {
     }
 
     @GetMapping("/data-completeness")
+    @RequirePermission("data:analysis:manage")
     public Map<String, Object> getDataCompleteness() {
         Map<String, Object> result = new HashMap<>();
         try (Connection conn = dataSource.getConnection()) {

@@ -1,6 +1,7 @@
 package com.example.backend.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.example.backend.annotation.RequirePermission;
 import com.example.backend.entity.Proxy;
 import com.example.backend.service.ProxyService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +18,7 @@ public class ProxyController {
     private ProxyService proxyService;
 
     @GetMapping("/list")
+    @RequirePermission("data:proxy:manage")
     public Map<String, Object> getProxyList() {
         Map<String, Object> response = new HashMap<>();
         try {
@@ -31,6 +33,7 @@ public class ProxyController {
     }
 
     @PostMapping("/add")
+    @RequirePermission("data:proxy:manage")
     public Map<String, Object> addProxy(@RequestBody Map<String, Object> params) {
         Map<String, Object> response = new HashMap<>();
         try {
@@ -75,6 +78,7 @@ public class ProxyController {
     }
 
     @PutMapping("/update/{id}")
+    @RequirePermission("data:proxy:manage")
     public Map<String, Object> updateProxy(@PathVariable Integer id, @RequestBody Map<String, Object> params) {
         Map<String, Object> response = new HashMap<>();
         try {
@@ -115,6 +119,7 @@ public class ProxyController {
     }
 
     @DeleteMapping("/delete/{id}")
+    @RequirePermission("data:proxy:manage")
     public Map<String, Object> deleteProxy(@PathVariable Integer id) {
         Map<String, Object> response = new HashMap<>();
         try {
@@ -134,6 +139,7 @@ public class ProxyController {
     }
 
     @PutMapping("/toggle/{id}")
+    @RequirePermission("data:proxy:manage")
     public Map<String, Object> toggleProxy(@PathVariable Integer id) {
         Map<String, Object> response = new HashMap<>();
         try {

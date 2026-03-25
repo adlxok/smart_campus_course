@@ -1,5 +1,6 @@
 package com.example.backend.controller;
 
+import com.example.backend.annotation.RequirePermission;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,6 +18,7 @@ public class BilibiliVideoController {
     private final RestTemplate restTemplate = new RestTemplate();
 
     @GetMapping("/videos")
+    @RequirePermission("data:video:manage")
     public Map<String, Object> getVideos(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize,

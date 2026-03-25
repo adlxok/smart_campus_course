@@ -3,6 +3,7 @@ package com.example.backend.controller;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.backend.annotation.RequirePermission;
 import com.example.backend.entity.SystemNotification;
 import com.example.backend.entity.User;
 import com.example.backend.entity.UserNotification;
@@ -28,6 +29,7 @@ public class AdminNotificationController {
     private UserMapper userMapper;
     
     @GetMapping("/list")
+    @RequirePermission("system:notification:manage")
     public Map<String, Object> getNotificationList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
@@ -50,6 +52,7 @@ public class AdminNotificationController {
     }
     
     @PostMapping("/add")
+    @RequirePermission("system:notification:manage")
     public Map<String, Object> addNotification(
             @RequestBody SystemNotification notification,
             @RequestParam(required = false) List<Long> userIds) {
@@ -88,6 +91,7 @@ public class AdminNotificationController {
     }
     
     @PutMapping("/update")
+    @RequirePermission("system:notification:manage")
     public Map<String, Object> updateNotification(@RequestBody SystemNotification notification) {
         Map<String, Object> response = new HashMap<>();
         try {
@@ -104,6 +108,7 @@ public class AdminNotificationController {
     }
     
     @DeleteMapping("/delete/{id}")
+    @RequirePermission("system:notification:manage")
     public Map<String, Object> deleteNotification(@PathVariable Long id) {
         Map<String, Object> response = new HashMap<>();
         try {
@@ -123,6 +128,7 @@ public class AdminNotificationController {
     }
     
     @PutMapping("/toggle/{id}")
+    @RequirePermission("system:notification:manage")
     public Map<String, Object> toggleNotificationStatus(@PathVariable Long id) {
         Map<String, Object> response = new HashMap<>();
         try {
@@ -147,6 +153,7 @@ public class AdminNotificationController {
     }
     
     @PostMapping("/send-to-users/{notificationId}")
+    @RequirePermission("system:notification:manage")
     public Map<String, Object> sendToUsers(
             @PathVariable Long notificationId,
             @RequestBody List<Long> userIds) {
@@ -175,6 +182,7 @@ public class AdminNotificationController {
     }
     
     @PostMapping("/send-to-all/{notificationId}")
+    @RequirePermission("system:notification:manage")
     public Map<String, Object> sendToAll(@PathVariable Long notificationId) {
         Map<String, Object> response = new HashMap<>();
         try {
