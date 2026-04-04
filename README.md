@@ -374,11 +374,6 @@ spring.servlet.multipart.max-request-size=500MB
 
 本项目仅供学习交流使用。
 
----
-
-## 👥 作者
-
-毕业设计项目
 
 ---
 
